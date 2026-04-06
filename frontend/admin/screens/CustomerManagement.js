@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  Platform
 } from 'react-native';
 import api from '../../shared/api/axiosConfig';
 
@@ -48,6 +49,21 @@ const CustomerManagement = () => {
   };
 
   const deleteCustomer = async (id, name) => {
+    if (Platform.OS === 'web') {
+      const confirmed = typeof window !== 'undefined' ? window.confirm(`Delete ${name}?`) : true;
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await api.delete(`/admin/customers/${id}`);
+        await fetchCustomers();
+      } catch (err) {
+        Alert.alert('Delete failed', err.response?.data?.message || 'Unable to delete customer');
+      }
+      return;
+    }
+
     Alert.alert('Delete Customer', `Delete ${name}?`, [
       { text: 'Cancel', style: 'cancel' },
       {

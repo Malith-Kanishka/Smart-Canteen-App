@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import api from '../../shared/api/axiosConfig';
 
@@ -19,7 +20,7 @@ const MyOrders = ({ navigation }) => {
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/order');
+      const { data } = await api.get('/customer/orders');
       setOrders(data);
       setError('');
     } catch (err) {
@@ -57,7 +58,7 @@ const MyOrders = ({ navigation }) => {
   const renderOrderCard = ({ item }) => (
     <TouchableOpacity
       style={styles.orderCard}
-      onPress={() => navigation.navigate('OrderDetail', { order: item })}
+      onPress={() => Alert.alert('Info', 'Order detail screen is not configured yet.')}
     >
       <View style={styles.orderHeader}>
         <Text style={styles.orderId}>{item.orderId}</Text>

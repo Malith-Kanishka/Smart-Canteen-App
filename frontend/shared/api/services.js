@@ -41,18 +41,151 @@ export const orderService = {
 /**
  * Finance Services
  */
-export const financeService = {\n  getDashboard: () => api.get('/finance/dashboard'),\n  getTransactions: (status, paymentType) =>\n    api.get('/finance/transactions', { params: { status, paymentType } }),\n  getTransactionById: (id) => api.get(`/finance/transactions/${id}`),\n  createTransaction: (orderId, paymentType, amountReceived, cardDetails) =>\n    api.post('/finance/transactions', { orderId, paymentType, amountReceived, cardDetails }),\n  refundTransaction: (id) => api.post(`/finance/transactions/${id}/refund`),\n};
+export const financeService = {
+  getDashboard: () => api.get('/finance/dashboard'),
+  getTransactions: (status, paymentType) =>
+    api.get('/finance/transactions', { params: { status, paymentType } }),
+  getTransactionById: (id) => api.get(`/finance/transactions/${id}`),
+  createTransaction: (orderId, paymentType, amountReceived, cardDetails) =>
+    api.post('/finance/transactions', { orderId, paymentType, amountReceived, cardDetails }),
+  refundTransaction: (id) => api.post(`/finance/transactions/${id}/refund`),
+};
 
-/**\n * Feedback Services\n */\nexport const feedbackService = {\n  getFeedback: (type, status, userId) =>\n    api.get('/feedback', { params: { type, status, userId } }),\n  getFeedbackById: (id) => api.get(`/feedback/${id}`),\n  createFeedback: (data, imageFile) => {\n    const formData = new FormData();\n    formData.append('type', data.type);\n    formData.append('rating', data.rating);\n    formData.append('comment', data.comment);\n    formData.append('orderId', data.orderId);\n    if (imageFile) {\n      formData.append('image', imageFile);\n    }\n    return api.post('/feedback', formData, {\n      headers: { 'Content-Type': 'multipart/form-data' },\n    });\n  },\n  updateFeedbackStatus: (id, status) =>\n    api.put(`/feedback/${id}/status`, { status }),\n};
+/**
+ * Feedback Services
+ */
+export const feedbackService = {
+  getFeedback: (type, status, userId) =>
+    api.get('/feedback', { params: { type, status, userId } }),
+  getFeedbackById: (id) => api.get(`/feedback/${id}`),
+  createFeedback: (data, imageFile) => {
+    const formData = new FormData();
+    formData.append('type', data.type);
+    formData.append('rating', data.rating);
+    formData.append('comment', data.comment);
+    formData.append('orderId', data.orderId);
+    if (imageFile) {
+      formData.append('image', imageFile);
+    }
+    return api.post('/feedback', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  updateFeedbackStatus: (id, status) =>
+    api.put(`/feedback/${id}/status`, { status }),
+};
 
-/**\n * Inventory Services\n */\nexport const inventoryService = {\n  getStock: (search, status) =>\n    api.get('/inventory/stock', { params: { search, status } }),\n  getStockById: (id) => api.get(`/inventory/stock/${id}`),\n  createStockItem: (data) => api.post('/inventory/stock', data),\n  updateStockItem: (id, data) => api.put(`/inventory/stock/${id}`, data),\n  deleteStockItem: (id) => api.delete(`/inventory/stock/${id}`),\n};
+/**
+ * Inventory Services
+ */
+export const inventoryService = {
+  getStock: (search, status) =>
+    api.get('/inventory/stock', { params: { search, status } }),
+  getStockById: (id) => api.get(`/inventory/stock/${id}`),
+  createStockItem: (data) => api.post('/inventory/stock', data),
+  updateStockItem: (id, data) => api.put(`/inventory/stock/${id}`, data),
+  deleteStockItem: (id) => api.delete(`/inventory/stock/${id}`),
+};
 
-/**\n * FoodMaster Services\n */\nexport const foodmasterService = {\n  getMenu: (search, isActive) =>\n    api.get('/foodmaster/menu', { params: { search, isActive } }),\n  getMenuItemById: (id) => api.get(`/foodmaster/menu/${id}`),\n  createMenuItem: (data, imageFile) => {\n    const formData = new FormData();\n    formData.append('name', data.name);\n    formData.append('description', data.description);\n    formData.append('price', data.price);\n    formData.append('category', data.category);\n    formData.append('isActive', data.isActive);\n    if (imageFile) {\n      formData.append('image', imageFile);\n    }\n    return api.post('/foodmaster/menu', formData, {\n      headers: { 'Content-Type': 'multipart/form-data' },\n    });\n  },\n  updateMenuItem: (id, data, imageFile) => {\n    const formData = new FormData();\n    formData.append('name', data.name);\n    formData.append('description', data.description);\n    formData.append('price', data.price);\n    formData.append('category', data.category);\n    formData.append('isActive', data.isActive);\n    if (imageFile) {\n      formData.append('image', imageFile);\n    }\n    return api.put(`/foodmaster/menu/${id}`, formData, {\n      headers: { 'Content-Type': 'multipart/form-data' },\n    });\n  },\n  deleteMenuItem: (id) => api.delete(`/foodmaster/menu/${id}`),\n};
+/**
+ * FoodMaster Services
+ */
+export const foodmasterService = {
+  getMenu: (search, isActive) =>
+    api.get('/foodmaster/menu', { params: { search, isActive } }),
+  getMenuItemById: (id) => api.get(`/foodmaster/menu/${id}`),
+  createMenuItem: (data, imageFile) => {
+    const formData = new FormData();
+    formData.append('name', data.name);
+    formData.append('description', data.description);
+    formData.append('price', data.price);
+    formData.append('category', data.category);
+    formData.append('isActive', data.isActive);
+    if (imageFile) {
+      formData.append('image', imageFile);
+    }
+    return api.post('/foodmaster/menu', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  updateMenuItem: (id, data, imageFile) => {
+    const formData = new FormData();
+    formData.append('name', data.name);
+    formData.append('description', data.description);
+    formData.append('price', data.price);
+    formData.append('category', data.category);
+    formData.append('isActive', data.isActive);
+    if (imageFile) {
+      formData.append('image', imageFile);
+    }
+    return api.put(`/foodmaster/menu/${id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  deleteMenuItem: (id) => api.delete(`/foodmaster/menu/${id}`),
+};
 
-/**\n * Promotion Services\n */\nexport const promotionService = {\n  getDailyDiscounts: (active) =>\n    api.get('/promotion/daily', { params: { active } }),\n  getDailyDiscountById: (id) => api.get(`/promotion/daily/${id}`),\n  createDailyDiscount: (menuItemId, discountPercentage, maxQuantity) =>\n    api.post('/promotion/daily', { menuItemId, discountPercentage, maxQuantity }),\n  updateDailyDiscount: (id, data) => api.put(`/promotion/daily/${id}`, data),\n  deleteDailyDiscount: (id) => api.delete(`/promotion/daily/${id}`),\n\n  getPromos: (active) => api.get('/promotion/seasonal', { params: { active } }),\n  getPromoById: (id) => api.get(`/promotion/seasonal/${id}`),\n  createPromo: (data) => api.post('/promotion/seasonal', data),\n  updatePromo: (id, data) => api.put(`/promotion/seasonal/${id}`, data),\n  deletePromo: (id) => api.delete(`/promotion/seasonal/${id}`),\n};
+/**
+ * Promotion Services
+ */
+export const promotionService = {
+  getDailyDiscounts: (active) =>
+    api.get('/promotion/daily', { params: { active } }),
+  getDailyDiscountById: (id) => api.get(`/promotion/daily/${id}`),
+  createDailyDiscount: (menuItemId, discountPercentage, maxQuantity) =>
+    api.post('/promotion/daily', { menuItemId, discountPercentage, maxQuantity }),
+  updateDailyDiscount: (id, data) => api.put(`/promotion/daily/${id}`, data),
+  deleteDailyDiscount: (id) => api.delete(`/promotion/daily/${id}`),
 
-/**\n * Admin Services\n */\nexport const adminService = {\n  getDashboard: () => api.get('/admin/dashboard'),\n  getStaff: (role, search) =>\n    api.get('/admin/staff', { params: { role, search } }),\n  createStaff: (data) => api.post('/admin/staff', data),\n  updateStaff: (id, data) => api.put(`/admin/staff/${id}`, data),\n  deleteStaff: (id) => api.delete(`/admin/staff/${id}`),\n\n  getCustomers: (search) => api.get('/admin/customers', { params: { search } }),\n  deleteCustomer: (id) => api.delete(`/admin/customers/${id}`),\n};
+  getPromos: (active) => api.get('/promotion/seasonal', { params: { active } }),
+  getPromoById: (id) => api.get(`/promotion/seasonal/${id}`),
+  createPromo: (data) => api.post('/promotion/seasonal', data),
+  updatePromo: (id, data) => api.put(`/promotion/seasonal/${id}`, data),
+  deletePromo: (id) => api.delete(`/promotion/seasonal/${id}`),
+};
 
-/**\n * Shared Services (Profile, Auth)\n */\nexport const sharedService = {\n  getProfile: (userRole) => api.get(`/${userRole}/profile`),\n  updateProfile: (userRole, data) => api.put(`/${userRole}/profile`, data),\n  changePassword: (userRole, data) =>\n    api.put(`/${userRole}/change-password`, data),\n  uploadProfilePhoto: (userRole, imageFile) => {\n    const formData = new FormData();\n    formData.append('photo', imageFile);\n    return api.post(`/${userRole}/profile/photo`, formData, {\n      headers: { 'Content-Type': 'multipart/form-data' },\n    });\n  },\n  deleteProfilePhoto: (userRole) => api.delete(`/${userRole}/profile/photo`),\n};
+/**
+ * Admin Services
+ */
+export const adminService = {
+  getDashboard: () => api.get('/admin/dashboard'),
+  getStaff: (role, search) =>
+    api.get('/admin/staff', { params: { role, search } }),
+  createStaff: (data) => api.post('/admin/staff', data),
+  updateStaff: (id, data) => api.put(`/admin/staff/${id}`, data),
+  deleteStaff: (id) => api.delete(`/admin/staff/${id}`),
 
-export default {\n  authService,\n  customerService,\n  orderService,\n  financeService,\n  feedbackService,\n  inventoryService,\n  foodmasterService,\n  promotionService,\n  adminService,\n  sharedService,\n};
+  getCustomers: (search) => api.get('/admin/customers', { params: { search } }),
+  deleteCustomer: (id) => api.delete(`/admin/customers/${id}`),
+};
+
+/**
+ * Shared Services (Profile, Auth)
+ */
+export const sharedService = {
+  getProfile: (userRole) => api.get(`/${userRole}/profile`),
+  updateProfile: (userRole, data) => api.put(`/${userRole}/profile`, data),
+  changePassword: (userRole, data) =>
+    api.put(`/${userRole}/change-password`, data),
+  uploadProfilePhoto: (userRole, imageFile) => {
+    const formData = new FormData();
+    formData.append('photo', imageFile);
+    return api.post(`/${userRole}/profile/photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  deleteProfilePhoto: (userRole) => api.delete(`/${userRole}/profile/photo`),
+};
+
+export default {
+  authService,
+  customerService,
+  orderService,
+  financeService,
+  feedbackService,
+  inventoryService,
+  foodmasterService,
+  promotionService,
+  adminService,
+  sharedService,
+};

@@ -17,8 +17,26 @@ connectDB();
 ensureUploadDirs();
 
 // Middleware
+const allowedOrigins = new Set([
+  config.server.clientUrl,
+  'http://localhost:3000',
+  'http://localhost:8081',
+  'http://localhost:8082',
+  'http://localhost:8083',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:8081',
+  'http://127.0.0.1:8082',
+  'http://127.0.0.1:8083'
+]);
+
 app.use(cors({
-  origin: config.server.clientUrl,
+  origin: (origin, callback) => {
+    // Allow non-browser requests (e.g., Postman/cURL) and known local dev origins.
+    if (!origin || allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true
 }));
 app.use(morgan('combined'));

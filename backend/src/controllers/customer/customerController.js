@@ -7,7 +7,7 @@ const path = require('path');
 // Get profile
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.userId).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -21,7 +21,7 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const { fullName, email, phone, address, dateOfBirth } = req.body;
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.userId);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -63,7 +63,7 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -89,7 +89,7 @@ exports.uploadProfilePhoto = async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -116,7 +116,7 @@ exports.uploadProfilePhoto = async (req, res) => {
 // Delete profile photo
 exports.deleteProfilePhoto = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -141,7 +141,7 @@ exports.deleteProfilePhoto = async (req, res) => {
 exports.browseMenu = async (req, res) => {
   try {
     const { search, category } = req.query;
-    let query = { available: true };
+    let query = { isActive: true };
 
     if (search) {
       query.name = { $regex: search, $options: 'i' };

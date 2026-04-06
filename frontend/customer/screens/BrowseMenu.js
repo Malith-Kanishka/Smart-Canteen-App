@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
+  Alert,
 } from 'react-native';
 import api from '../../shared/api/axiosConfig';
 
@@ -47,7 +48,7 @@ const BrowseMenu = ({ navigation }) => {
   const renderMenuItem = ({ item }) => (
     <TouchableOpacity
       style={styles.menuCard}
-      onPress={() => navigation.navigate('ItemDetail', { item })}
+      onPress={() => Alert.alert('Info', 'Item details screen is not configured yet.')}
     >
       {item.image && (
         <Image
@@ -61,7 +62,7 @@ const BrowseMenu = ({ navigation }) => {
         <Text style={styles.itemDesc} numberOfLines={2}>{item.description}</Text>
         <TouchableOpacity
           style={styles.addBtn}
-          onPress={() => navigation.navigate('Cart', { item })}
+          onPress={() => Alert.alert('Info', 'Cart screen is not configured yet.')}
         >
           <Text style={styles.addBtnText}>Add to Cart</Text>
         </TouchableOpacity>

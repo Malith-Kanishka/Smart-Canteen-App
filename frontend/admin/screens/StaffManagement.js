@@ -9,7 +9,8 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  Platform
 } from 'react-native';
 import api from '../../shared/api/axiosConfig';
 
@@ -92,6 +93,11 @@ const StaffManagement = () => {
   };
 
   const submitUpdate = async () => {
+    if (!editForm._id) {
+      setError('Invalid staff record selected');
+      return;
+    }
+
     setSaving(true);
     setError('');
     try {
@@ -107,6 +113,7 @@ const StaffManagement = () => {
       await api.put(`/admin/staff/${editForm._id}`, payload);
       closeEdit();
       await fetchStaff();
+      Alert.alert('Success', 'Staff member updated successfully');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update staff');
     } finally {
@@ -115,6 +122,21 @@ const StaffManagement = () => {
   };
 
   const deleteStaff = async (id, name) => {
+    if (Platform.OS === 'web') {
+      const confirmed = typeof window !== 'undefined' ? window.confirm(`Delete ${name}?`) : true;
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await api.delete(`/admin/staff/${id}`);
+        await fetchStaff();
+      } catch (err) {
+        Alert.alert('Delete failed', err.response?.data?.message || 'Unable to delete staff');
+      }
+      return;
+    }
+
     Alert.alert('Delete Staff', `Delete ${name}?`, [
       { text: 'Cancel', style: 'cancel' },
       {

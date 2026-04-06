@@ -19,7 +19,9 @@ const CustomerTabs = () => {
     >
       <Tab.Screen name="Menu" component={BrowseMenu} />
       <Tab.Screen name="MyOrders" component={MyOrders} options={{ title: 'Orders' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Profile">
+        {(props) => <ProfileScreen {...props} userRole="customer" />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 };

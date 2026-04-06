@@ -8,11 +8,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api/axiosConfig';
+import { useAuth } from '../context/AuthContext';
 
 const ProfileScreen = ({ navigation, userRole }) => {
+  const { signOut, userRole: authUserRole } = useAuth();
+  const effectiveRole = userRole || authUserRole;
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -26,7 +29,12 @@ const ProfileScreen = ({ navigation, userRole }) => {
   const fetchProfile = async () => {
     setLoading(true);
     try {
-      const endpoint = `/${userRole}/profile`;
+      if (!effectiveRole) {
+        setError('User role is unavailable. Please sign in again.');
+        setLoading(false);
+        return;
+      }
+      const endpoint = `/${effectiveRole}/profile`;
       const { data } = await api.get(endpoint);
       setProfile(data);
       setForm(data);
@@ -40,7 +48,7 @@ const ProfileScreen = ({ navigation, userRole }) => {
 
   const handleUpdateProfile = async () => {
     try {
-      const endpoint = `/${userRole}/profile`;
+      const endpoint = `/${effectiveRole}/profile`;
       await api.put(endpoint, {
         fullName: form.fullName,
         email: form.email,
@@ -57,18 +65,28 @@ const ProfileScreen = ({ navigation, userRole }) => {
   };
 
   const handleChangePassword = () => {
-    navigation.navigate('ChangePassword', { userRole });
+    Alert.alert('Info', 'Change password screen is not configured yet.');
+  };
+
+  const performLogout = async () => {
+    await signOut();
   };
 
   const handleLogout = async () => {
+    if (Platform.OS === 'web') {
+      const confirmed = typeof window !== 'undefined' ? window.confirm('Are you sure you want to logout?') : true;
+      if (confirmed) {
+        await performLogout();
+      }
+      return;
+    }
+
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', onPress: () => {}, style: 'cancel' },
       {
         text: 'Logout',
         onPress: async () => {
-          await AsyncStorage.removeItem('token');
-          await AsyncStorage.removeItem('userRole');
-          navigation.navigate('Splash');
+          await performLogout();
         },
         style: 'destructive',
       },
