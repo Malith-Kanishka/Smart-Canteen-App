@@ -1,0 +1,97 @@
+const express = require('express');
+const cors = require('cors');
+const morgan = require('morgan');
+require('dotenv').config();
+
+const config = require('./config/config');
+const connectDB = require('./config/database');
+const { ensureUploadDirs } = require('./middleware/upload');
+
+// Initialize Express App
+const app = express();
+
+// Connect Database
+connectDB();
+
+// Ensure upload directories exist
+ensureUploadDirs();
+
+// Middleware
+app.use(cors({
+  origin: config.server.clientUrl,
+  credentials: true
+}));
+app.use(morgan('combined'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Serve static files
+app.use('/uploads', express.static('uploads'));
+
+// Test Route
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Smart Canteen Backend API',
+    version: '1.0.0',
+    status: 'Running'
+  });
+});
+
+// Health Check Route
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date() });
+});
+
+// ==================== AUTH ROUTES ====================
+app.use('/api/auth', require('./routes/auth/authRoutes'));
+
+// ==================== ADMIN ROUTES ====================
+app.use('/api/admin', require('./routes/admin/adminRoutes'));
+
+// ==================== FOOD MASTER ROUTES ====================
+app.use('/api/foodmaster', require('./routes/foodmaster/foodmasterRoutes'));
+
+// ==================== INVENTORY ROUTES ====================
+app.use('/api/inventory', require('./routes/inventory/inventoryRoutes'));
+
+// ==================== PROMOTION ROUTES ====================
+app.use('/api/promotion', require('./routes/promotion/promotionRoutes'));
+
+// ==================== ORDER ROUTES ====================
+app.use('/api/order', require('./routes/order/orderRoutes'));
+
+// ==================== FINANCE ROUTES ====================
+app.use('/api/finance', require('./routes/finance/financeRoutes'));
+
+// ==================== FEEDBACK ROUTES ====================
+app.use('/api/feedback', require('./routes/feedback/feedbackRoutes'));
+
+// ==================== CUSTOMER ROUTES ====================
+app.use('/api/customer', require('./routes/customer/customerRoutes'));
+
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({
+    message: 'Route not found',
+    path: req.originalUrl
+  });
+});
+
+// Error Handling Middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err.message);
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal Server Error',
+    error: config.server.nodeEnv === 'development' ? err : {}
+  });
+});
+
+// Start Server
+const PORT = config.server.port;
+app.listen(PORT, () => {
+  console.log(`\n🚀 Smart Canteen Backend Server Running on Port ${PORT}`);
+  console.log(`📍 Environment: ${config.server.nodeEnv}`);
+  console.log(`🌍 Client URL: ${config.server.clientUrl}\n`);
+});
+
+module.exports = app;
