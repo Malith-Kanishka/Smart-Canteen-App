@@ -1,32 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const { auth, roleAccess } = require('../../middleware/auth');
-const { complaintUpload } = require('../../middleware/upload');
+const { complaintUpload, profileUpload } = require('../../middleware/upload');
+const feedbackController = require('../../controllers/feedback/feedbackController');
 
-// Placeholder controller - to be implemented
-// Create Feedback/Complaint (for customers)
-router.post('/create', auth, roleAccess('customer', 'feedback'), complaintUpload.single('image'), (req, res) => {
-  res.json({ message: 'Create feedback - Implementation pending' });
-});
+// Feedback Management
+router.get('/', auth, roleAccess('feedback'), feedbackController.getFeedback);
+router.get('/:id', auth, roleAccess('feedback'), feedbackController.getFeedbackById);
+router.post('/', auth, roleAccess('feedback', 'customer'), complaintUpload.single('image'), feedbackController.createFeedback);
+router.put('/:id/status', auth, roleAccess('feedback'), feedbackController.updateFeedbackStatus);
 
-// Get User's Feedback (for customers)
-router.get('/my-feedback', auth, roleAccess('customer', 'feedback'), (req, res) => {
-  res.json({ message: 'Get my feedback - Implementation pending' });
-});
-
-// Get All Feedbacks (for feedback manager)
-router.get('/all', auth, roleAccess('feedback'), (req, res) => {
-  res.json({ message: 'Get all feedback - Implementation pending' });
-});
-
-// Update Feedback Status (for feedback manager)
-router.put('/:id/status', auth, roleAccess('feedback'), (req, res) => {
-  res.json({ message: 'Update feedback status - Implementation pending' });
-});
-
-// Delete Feedback
-router.delete('/:id', auth, roleAccess('feedback', 'customer'), (req, res) => {
-  res.json({ message: 'Delete feedback - Implementation pending' });
-});
+// Profile
+router.get('/profile', auth, roleAccess('feedback'), feedbackController.getProfile);
+router.put('/profile', auth, roleAccess('feedback'), feedbackController.updateProfile);
+router.put('/change-password', auth, roleAccess('feedback'), feedbackController.changePassword);
+router.post('/profile/photo', auth, roleAccess('feedback'), profileUpload.single('photo'), feedbackController.uploadProfilePhoto);
+router.delete('/profile/photo', auth, roleAccess('feedback'), feedbackController.deleteProfilePhoto);
 
 module.exports = router;

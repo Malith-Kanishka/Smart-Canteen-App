@@ -1,11 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const { auth, roleAccess } = require('../../middleware/auth');
+const { profileUpload } = require('../../middleware/upload');
 const customerController = require('../../controllers/customer/customerController');
 
-router.get('/dashboard', auth, roleAccess('customer'), customerController.getCustomerDashboard);
+// Browse Menu
+router.get('/menu', auth, roleAccess('customer'), customerController.browseMenu);
+
+// My Orders
 router.get('/orders', auth, roleAccess('customer'), customerController.getMyOrders);
-router.get('/profile', auth, roleAccess('customer'), customerController.getMyProfile);
-router.put('/profile', auth, roleAccess('customer'), customerController.updateMyProfile);
+
+// Profile
+router.get('/profile', auth, roleAccess('customer'), customerController.getProfile);
+router.put('/profile', auth, roleAccess('customer'), customerController.updateProfile);
+router.put('/change-password', auth, roleAccess('customer'), customerController.changePassword);
+router.post('/profile/photo', auth, roleAccess('customer'), profileUpload.single('photo'), customerController.uploadProfilePhoto);
+router.delete('/profile/photo', auth, roleAccess('customer'), customerController.deleteProfilePhoto);
 
 module.exports = router;

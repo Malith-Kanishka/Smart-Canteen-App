@@ -1,8 +1,111 @@
+const Feedback = require('../../models/Feedback');
 const User = require('../../models/User');
-const Order = require('../../models/Order');
-const MenuItem = require('../../models/MenuItem');
 const fs = require('fs');
 const path = require('path');
+
+// Generate unique feedbackId
+const generateFeedbackId = async () => {
+  const count = await Feedback.countDocuments();
+  return `FBK${String(count + 1).padStart(6, '0')}`;
+};
+
+// Get all feedback
+exports.getFeedback = async (req, res) => {
+  try {
+    const { type, status, userId } = req.query;
+    let query = {};
+
+    if (type) query.type = type;
+    if (status) query.status = status;
+    if (userId) query.userId = userId;
+
+    const feedback = await Feedback.find(query).populate('userId', 'fullName username email').sort({ createdAt: -1 });
+    res.json(feedback);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get single feedback
+exports.getFeedbackById = async (req, res) => {
+  try {
+    const feedback = await Feedback.findById(req.params.id).populate('userId', 'fullName username email');
+    if (!feedback) {
+      return res.status(404).json({ message: 'Feedback not found' });
+    }
+    res.json(feedback);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Create feedback
+exports.createFeedback = async (req, res) => {
+  try {
+    const { type, rating, comment, orderId } = req.body;
+    const userId = req.user.id;
+
+    if (!type || !['complaint', 'review'].includes(type)) {
+      return res.status(400).json({ message: 'Valid feedback type (complaint/review) is required' });
+    }
+
+    if (!comment || comment.trim().length === 0) {
+      return res.status(400).json({ message: 'Comment is required' });
+    }
+
+    if (type === 'review' && (!rating || rating < 1 || rating > 5)) {
+      return res.status(400).json({ message: 'Valid rating (1-5) is required for reviews' });
+    }
+
+    const feedbackId = await generateFeedbackId();
+    const imageUrl = req.file ? `/uploads/complaints/${req.file.filename}` : null;
+
+    const newFeedback = new Feedback({
+      feedbackId,
+      userId,
+      orderId: orderId || null,
+      type,
+      rating: type === 'review' ? rating : null,
+      comment,
+      imageUrl,
+      status: 'pending'
+    });
+
+    await newFeedback.save();
+    res.status(201).json({
+      message: 'Feedback submitted successfully',
+      feedback: newFeedback
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Update feedback status
+exports.updateFeedbackStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const feedback = await Feedback.findById(req.params.id);
+
+    if (!feedback) {
+      return res.status(404).json({ message: 'Feedback not found' });
+    }
+
+    if (!['pending', 'resolved'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    feedback.status = status;
+    await feedback.save();
+
+    res.json({
+      message: 'Feedback status updated',
+      feedback
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 // Get profile
 exports.getProfile = async (req, res) => {
@@ -132,37 +235,6 @@ exports.deleteProfilePhoto = async (req, res) => {
     await user.save();
 
     res.json({ message: 'Photo deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// Browse menu
-exports.browseMenu = async (req, res) => {
-  try {
-    const { search, category } = req.query;
-    let query = { available: true };
-
-    if (search) {
-      query.name = { $regex: search, $options: 'i' };
-    }
-
-    if (category) {
-      query.category = category;
-    }
-
-    const menuItems = await MenuItem.find(query).sort({ createdAt: -1 });
-    res.json(menuItems);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// Get my orders
-exports.getMyOrders = async (req, res) => {
-  try {
-    const orders = await Order.find().sort({ createdAt: -1 });
-    res.json(orders);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

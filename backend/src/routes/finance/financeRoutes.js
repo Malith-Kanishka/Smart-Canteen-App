@@ -1,39 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const { auth, roleAccess } = require('../../middleware/auth');
+const { profileUpload } = require('../../middleware/upload');
+const financeController = require('../../controllers/finance/financeController');
 
-// Placeholder controller - to be implemented
-// Finance Dashboard (same as Order but different default context)
-router.get('/dashboard', auth, roleAccess('finance'), (req, res) => {
-  res.json({ message: 'Finance dashboard - Implementation pending' });
-});
+// Dashboard
+router.get('/dashboard', auth, roleAccess('finance'), financeController.getDashboard);
 
-// Billing System (primary focus for Finance Officer)
-router.get('/transactions', auth, roleAccess('finance'), (req, res) => {
-  res.json({ message: 'Get transactions - Implementation pending' });
-});
+// Transactions
+router.get('/transactions', auth, roleAccess('finance'), financeController.getTransactions);
+router.get('/transactions/:id', auth, roleAccess('finance'), financeController.getTransactionById);
+router.post('/transactions', auth, roleAccess('finance'), financeController.createTransaction);
+router.post('/transactions/:id/refund', auth, roleAccess('finance'), financeController.refundTransaction);
 
-router.post('/refund/:id', auth, roleAccess('finance'), (req, res) => {
-  res.json({ message: 'Refund transaction - Implementation pending' });
-});
-
-router.delete('/transaction/:id', auth, roleAccess('finance'), (req, res) => {
-  res.json({ message: 'Delete transaction - Implementation pending' });
-});
-
-// Manual Order Access
-router.get('/orders', auth, roleAccess('finance'), (req, res) => {
-  res.json({ message: 'Get orders - Implementation pending' });
-});
-
-// Kitchen Display Access
-router.get('/kitchen-display', auth, roleAccess('finance'), (req, res) => {
-  res.json({ message: 'Kitchen display - Implementation pending' });
-});
-
-// Profile Management
-router.get('/profile', auth, roleAccess('finance'), (req, res) => {
-  res.json({ message: 'Get profile - Implementation pending' });
-});
+// Profile
+router.get('/profile', auth, roleAccess('finance'), financeController.getProfile);
+router.put('/profile', auth, roleAccess('finance'), financeController.updateProfile);
+router.put('/change-password', auth, roleAccess('finance'), financeController.changePassword);
+router.post('/profile/photo', auth, roleAccess('finance'), profileUpload.single('photo'), financeController.uploadProfilePhoto);
+router.delete('/profile/photo', auth, roleAccess('finance'), financeController.deleteProfilePhoto);
 
 module.exports = router;
