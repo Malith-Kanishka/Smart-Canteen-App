@@ -5,13 +5,11 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api/axiosConfig';
 
-const LoginScreen = ({ navigation }) => {
+const LoginScreen = ({ navigation, onSignIn }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,21 +26,20 @@ const LoginScreen = ({ navigation }) => {
 
     try {
       const response = await api.post('/auth/login', {
-        username,
+        username: username.trim(),
         password,
       });
 
       if (response.data.token) {
-        await AsyncStorage.setItem('token', response.data.token);
-        await AsyncStorage.setItem('userRole', response.data.role);
-        
-        // Navigation will happen automatically when token is stored
+        await onSignIn(response.data.token, response.data.role);
       } else {
         setError('Invalid credentials');
       }
     } catch (err) {
       if (err.response?.status === 401) {
         setError('Invalid username or password');
+      } else if (err.response?.status === 403) {
+        navigation.navigate('Unauthorized');
       } else if (!err.response) {
         setError('Connection error. Backend unreachable.');
       } else {

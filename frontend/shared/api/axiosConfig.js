@@ -2,9 +2,10 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.100:5000/api';
+const RESOLVED_API_URL = process.env.EXPO_PUBLIC_API_URL || API_URL;
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: RESOLVED_API_URL,
   timeout: 10000,
 });
 

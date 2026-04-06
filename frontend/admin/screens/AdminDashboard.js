@@ -1,31 +1,239 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+  RefreshControl
+} from 'react-native';
+import api from '../../shared/api/axiosConfig';
+
+const defaultForm = {
+  fullName: '',
+  nic: '',
+  phone: '',
+  email: '',
+  address: '',
+  dateOfBirth: '',
+  role: 'foodmaster'
+};
+
+const roleOptions = ['foodmaster', 'inventory', 'promotion', 'order', 'finance', 'feedback', 'admin'];
 
 const AdminDashboard = () => {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [form, setForm] = useState(defaultForm);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [createdCredentials, setCreatedCredentials] = useState(null);
+
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/admin/dashboard');
+      setStats(data);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchDashboard();
+    setRefreshing(false);
+  };
+
+  const roleItems = useMemo(() => {
+    if (!stats?.staffByRole) {
+      return [];
+    }
+    return Object.entries(stats.staffByRole);
+  }, [stats]);
+
+  const updateField = (key, value) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setForm(defaultForm);
+  };
+
+  const submitNewStaff = async () => {
+    setSaving(true);
+    setError('');
+    setCreatedCredentials(null);
+
+    try {
+      const { data } = await api.post('/admin/staff', form);
+      setCreatedCredentials(data.generatedCredentials);
+      await fetchDashboard();
+      setTimeout(() => {
+        closeModal();
+      }, 1500);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create staff');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Admin Dashboard</Text>
-      <Text style={styles.placeholder}>Implementation pending</Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <Text style={styles.title}>Dashboard Overview</Text>
+
+        {loading ? (
+          <ActivityIndicator size="large" color="#1abc9c" style={{ marginTop: 20 }} />
+        ) : (
+          <>
+            <View style={styles.cardGrid}>
+              <View style={styles.card}>
+                <Text style={styles.cardLabel}>Total Staff</Text>
+                <Text style={styles.cardValue}>{stats?.totalStaff ?? 0}</Text>
+              </View>
+              <View style={styles.card}>
+                <Text style={styles.cardLabel}>Total Customers</Text>
+                <Text style={styles.cardValue}>{stats?.totalCustomers ?? 0}</Text>
+              </View>
+            </View>
+
+            <View style={styles.roleListCard}>
+              <Text style={styles.sectionTitle}>Staff Count Per Role</Text>
+              {roleItems.map(([role, count]) => (
+                <View key={role} style={styles.roleRow}>
+                  <Text style={styles.roleName}>{role}</Text>
+                  <Text style={styles.roleCount}>{count}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {!!error && <Text style={styles.errorText}>{error}</Text>}
+      </ScrollView>
+
+      <TouchableOpacity style={styles.fabButton} onPress={() => setModalVisible(true)}>
+        <Text style={styles.fabText}>Add New Staff Member</Text>
+      </TouchableOpacity>
+
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Add New Staff Member</Text>
+
+            <ScrollView>
+              <TextInput style={styles.input} placeholder="Full Name" value={form.fullName} onChangeText={(v) => updateField('fullName', v)} />
+              <TextInput style={styles.input} placeholder="NIC" value={form.nic} onChangeText={(v) => updateField('nic', v)} />
+              <TextInput style={styles.input} placeholder="Phone (10 digits)" value={form.phone} onChangeText={(v) => updateField('phone', v)} keyboardType="phone-pad" />
+              <TextInput style={styles.input} placeholder="Email" value={form.email} onChangeText={(v) => updateField('email', v)} keyboardType="email-address" autoCapitalize="none" />
+              <TextInput style={styles.input} placeholder="Address" value={form.address} onChangeText={(v) => updateField('address', v)} />
+              <TextInput style={styles.input} placeholder="DOB (YYYY-MM-DD)" value={form.dateOfBirth} onChangeText={(v) => updateField('dateOfBirth', v)} />
+
+              <Text style={styles.smallHeading}>Select Role</Text>
+              <View style={styles.roleChipWrap}>
+                {roleOptions.map((role) => (
+                  <TouchableOpacity
+                    key={role}
+                    style={[styles.roleChip, form.role === role && styles.roleChipActive]}
+                    onPress={() => updateField('role', role)}
+                  >
+                    <Text style={[styles.roleChipText, form.role === role && styles.roleChipTextActive]}>{role}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+              {createdCredentials && (
+                <View style={styles.successBox}>
+                  <Text style={styles.successTitle}>Staff Created</Text>
+                  <Text style={styles.successText}>Staff ID: {createdCredentials.staffId}</Text>
+                  <Text style={styles.successText}>Username: {createdCredentials.username}</Text>
+                  <Text style={styles.successText}>Password: {createdCredentials.password}</Text>
+                </View>
+              )}
+
+              <TouchableOpacity style={styles.primaryButton} onPress={submitNewStaff} disabled={saving}>
+                {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Add Staff Member</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryButton} onPress={closeModal}>
+                <Text style={styles.secondaryButtonText}>Close</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+  container: { flex: 1, backgroundColor: '#f2f4f8' },
+  content: { padding: 16, paddingBottom: 120 },
+  title: { fontSize: 26, fontWeight: 'bold', color: '#1f2937', marginBottom: 14 },
+  cardGrid: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  card: { flex: 1, backgroundColor: '#ffffff', borderRadius: 12, padding: 14, elevation: 2 },
+  cardLabel: { color: '#64748b', fontSize: 14 },
+  cardValue: { color: '#111827', fontSize: 26, fontWeight: 'bold', marginTop: 6 },
+  roleListCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14, elevation: 2 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1f2937', marginBottom: 8 },
+  roleRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#eef2f7' },
+  roleName: { color: '#334155', textTransform: 'capitalize' },
+  roleCount: { color: '#0f766e', fontWeight: '700' },
+  fabButton: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 20,
+    backgroundColor: '#0ea5a2',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center'
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1abc9c',
+  fabText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 14 },
+  modalCard: { backgroundColor: '#fff', borderRadius: 14, padding: 16, maxHeight: '92%' },
+  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 10, color: '#111827' },
+  input: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10
   },
-  placeholder: {
-    marginTop: 10,
-    color: '#7f8c8d',
-  },
+  smallHeading: { fontWeight: '700', color: '#1f2937', marginBottom: 8 },
+  roleChipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  roleChip: { borderWidth: 1, borderColor: '#94a3b8', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  roleChipActive: { borderColor: '#0f766e', backgroundColor: '#ccfbf1' },
+  roleChipText: { color: '#334155', textTransform: 'capitalize' },
+  roleChipTextActive: { color: '#115e59', fontWeight: '700' },
+  primaryButton: { backgroundColor: '#0ea5a2', paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 },
+  primaryButtonText: { color: '#fff', fontWeight: '700' },
+  secondaryButton: { borderWidth: 1, borderColor: '#94a3b8', paddingVertical: 11, borderRadius: 8, alignItems: 'center', marginTop: 10 },
+  secondaryButtonText: { color: '#334155', fontWeight: '600' },
+  errorText: { color: '#dc2626', marginTop: 4, marginBottom: 6 },
+  successBox: { backgroundColor: '#ecfdf5', borderWidth: 1, borderColor: '#6ee7b7', borderRadius: 8, padding: 10, marginVertical: 6 },
+  successTitle: { fontWeight: '700', color: '#166534', marginBottom: 4 },
+  successText: { color: '#166534' }
 });
 
 export default AdminDashboard;

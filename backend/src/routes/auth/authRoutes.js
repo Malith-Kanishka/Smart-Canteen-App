@@ -1,26 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const { auth } = require('../../middleware/auth');
+const authController = require('../../controllers/auth/authController');
 
-// Placeholder controller - to be implemented
 // Login Route
-router.post('/login', (req, res) => {
-  res.json({ message: 'Login endpoint - Implementation pending' });
-});
+router.post('/login', authController.login);
 
 // Register Route (for customers only)
-router.post('/register', (req, res) => {
-  res.json({ message: 'Register endpoint - Implementation pending' });
-});
+router.post('/register', authController.registerCustomer);
 
 // Verify Token Route
-router.get('/verify', auth, (req, res) => {
-  res.json({ message: 'Token verified', user: req.user });
-});
+router.get('/verify', auth, authController.verify);
 
 // Logout Route
-router.post('/logout', auth, (req, res) => {
-  res.json({ message: 'Logout successful' });
-});
+router.post('/logout', auth, authController.logout);
 
 module.exports = router;

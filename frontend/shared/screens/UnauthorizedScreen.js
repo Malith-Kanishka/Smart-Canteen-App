@@ -2,8 +2,13 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const UnauthorizedScreen = ({ navigation }) => {
+const UnauthorizedScreen = ({ navigation, onSignOut }) => {
   const handleReturnToLogin = async () => {
+    if (onSignOut) {
+      await onSignOut();
+      return;
+    }
+
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('userRole');
     navigation.replace('Login');

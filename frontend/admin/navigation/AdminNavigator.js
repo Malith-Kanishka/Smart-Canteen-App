@@ -4,32 +4,36 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AdminDashboard from '../screens/AdminDashboard';
 import StaffManagement from '../screens/StaffManagement';
 import CustomerManagement from '../screens/CustomerManagement';
-import ProfileScreen from '../screens/ProfileScreen';
+import MySecurityProfile from '../screens/MySecurityProfile';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const AdminTabs = () => {
+const AdminTabs = ({ onSignOut }) => {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#1abc9c',
         tabBarInactiveTintColor: '#bdc3c7',
-      })}
+      }}
     >
       <Tab.Screen name="Dashboard" component={AdminDashboard} />
       <Tab.Screen name="Staff" component={StaffManagement} />
       <Tab.Screen name="Customers" component={CustomerManagement} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="SecurityProfile">
+        {(props) => <MySecurityProfile {...props} onSignOut={onSignOut} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 };
 
-const AdminNavigator = () => {
+const AdminNavigator = ({ onSignOut }) => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="AdminTabs" component={AdminTabs} />
+      <Stack.Screen name="AdminTabs">
+        {(props) => <AdminTabs {...props} onSignOut={onSignOut} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 };
