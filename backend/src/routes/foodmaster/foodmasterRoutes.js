@@ -1,33 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const { auth, roleAccess } = require('../../middleware/auth');
-const { foodUpload } = require('../../middleware/upload');
+const { foodUpload, profileUpload } = require('../../middleware/upload');
+const foodmasterController = require('../../controllers/foodmaster/foodmasterController');
 
-// Placeholder controller - to be implemented
 // Menu Catalog
-router.get('/menu', auth, roleAccess('foodmaster'), (req, res) => {
-  res.json({ message: 'Get all menu items - Implementation pending' });
-});
-
-router.post('/menu', auth, roleAccess('foodmaster'), foodUpload.single('image'), (req, res) => {
-  res.json({ message: 'Create menu item - Implementation pending' });
-});
-
-router.put('/menu/:id', auth, roleAccess('foodmaster'), foodUpload.single('image'), (req, res) => {
-  res.json({ message: 'Update menu item - Implementation pending' });
-});
-
-router.delete('/menu/:id', auth, roleAccess('foodmaster'), (req, res) => {
-  res.json({ message: 'Delete menu item - Implementation pending' });
-});
+router.get('/menu', auth, roleAccess('foodmaster'), foodmasterController.getMenu);
+router.get('/menu/:id', auth, roleAccess('foodmaster'), foodmasterController.getMenuItemById);
+router.post('/menu', auth, roleAccess('foodmaster'), foodUpload.single('image'), foodmasterController.createMenuItem);
+router.put('/menu/:id', auth, roleAccess('foodmaster'), foodUpload.single('image'), foodmasterController.updateMenuItem);
+router.delete('/menu/:id', auth, roleAccess('foodmaster'), foodmasterController.deleteMenuItem);
 
 // Profile Management
-router.get('/profile', auth, roleAccess('foodmaster'), (req, res) => {
-  res.json({ message: 'Get profile - Implementation pending' });
-});
-
-router.put('/profile', auth, roleAccess('foodmaster'), (req, res) => {
-  res.json({ message: 'Update profile - Implementation pending' });
-});
+router.get('/profile', auth, roleAccess('foodmaster'), foodmasterController.getProfile);
+router.put('/profile', auth, roleAccess('foodmaster'), foodmasterController.updateProfile);
+router.put('/change-password', auth, roleAccess('foodmaster'), foodmasterController.changePassword);
+router.post('/profile/photo', auth, roleAccess('foodmaster'), profileUpload.single('photo'), foodmasterController.uploadProfilePhoto);
+router.delete('/profile/photo', auth, roleAccess('foodmaster'), foodmasterController.deleteProfilePhoto);
 
 module.exports = router;

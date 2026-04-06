@@ -1,33 +1,24 @@
 const express = require('express');
 const router = express.Router();
 const { auth, roleAccess } = require('../../middleware/auth');
+const { profileUpload } = require('../../middleware/upload');
+const inventoryController = require('../../controllers/inventory/inventoryController');
 
-// Placeholder controller - to be implemented
-// Stock Dashboard
-router.get('/dashboard', auth, roleAccess('inventory'), (req, res) => {
-  res.json({ message: 'Stock dashboard - Implementation pending' });
-});
+// Dashboard
+router.get('/dashboard', auth, roleAccess('inventory'), inventoryController.getDashboard);
 
 // Stock Items
-router.get('/stock', auth, roleAccess('inventory'), (req, res) => {
-  res.json({ message: 'Get all stock items - Implementation pending' });
-});
-
-router.post('/stock', auth, roleAccess('inventory'), (req, res) => {
-  res.json({ message: 'Create stock item - Implementation pending' });
-});
-
-router.put('/stock/:id', auth, roleAccess('inventory'), (req, res) => {
-  res.json({ message: 'Update stock item - Implementation pending' });
-});
-
-router.delete('/stock/:id', auth, roleAccess('inventory'), (req, res) => {
-  res.json({ message: 'Delete stock item - Implementation pending' });
-});
+router.get('/stock', auth, roleAccess('inventory'), inventoryController.getStock);
+router.get('/stock/:id', auth, roleAccess('inventory'), inventoryController.getStockItem);
+router.post('/stock', auth, roleAccess('inventory'), inventoryController.createStockItem);
+router.put('/stock/:id', auth, roleAccess('inventory'), inventoryController.updateStockItem);
+router.delete('/stock/:id', auth, roleAccess('inventory'), inventoryController.deleteStockItem);
 
 // Profile Management
-router.get('/profile', auth, roleAccess('inventory'), (req, res) => {
-  res.json({ message: 'Get profile - Implementation pending' });
-});
+router.get('/profile', auth, roleAccess('inventory'), inventoryController.getProfile);
+router.put('/profile', auth, roleAccess('inventory'), inventoryController.updateProfile);
+router.put('/change-password', auth, roleAccess('inventory'), inventoryController.changePassword);
+router.post('/profile/photo', auth, roleAccess('inventory'), profileUpload.single('photo'), inventoryController.uploadProfilePhoto);
+router.delete('/profile/photo', auth, roleAccess('inventory'), inventoryController.deleteProfilePhoto);
 
 module.exports = router;

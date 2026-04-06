@@ -2,12 +2,12 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import FoodMasterMenu from '../screens/FoodMasterMenu';
-import ProfileScreen from '../../shared/screens/ProfileScreen';
+import FoodMasterProfile from '../screens/FoodMasterProfile';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const FoodMasterTabs = () => {
+const FoodMasterTabs = ({ onSignOut }) => {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -17,15 +17,19 @@ const FoodMasterTabs = () => {
       }}
     >
       <Tab.Screen name="MenuCatalog" component={FoodMasterMenu} options={{ title: 'Menu' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Profile" options={{ title: 'Profile' }}>
+        {(props) => <FoodMasterProfile {...props} onSignOut={onSignOut} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 };
 
-const FoodMasterNavigator = () => {
+const FoodMasterNavigator = ({ onSignOut }) => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="FoodMasterTabs" component={FoodMasterTabs} />
+      <Stack.Screen name="FoodMasterTabs">
+        {(props) => <FoodMasterTabs {...props} onSignOut={onSignOut} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 };

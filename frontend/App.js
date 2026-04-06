@@ -120,8 +120,16 @@ export default function App() {
                   {(props) => <AdminNavigator {...props} onSignOut={handleSignOut} />}
                 </Stack.Screen>
               )}
-              {state.userRole === 'foodmaster' && <Stack.Screen name="FoodMaster" component={FoodMasterNavigator} options={{ animationEnabled: false }} />}
-              {state.userRole === 'inventory' && <Stack.Screen name="Inventory" component={InventoryNavigator} options={{ animationEnabled: false }} />}
+              {state.userRole === 'foodmaster' && (
+                <Stack.Screen name="FoodMaster" options={{ animationEnabled: false }}>
+                  {(props) => <FoodMasterNavigator {...props} onSignOut={handleSignOut} />}
+                </Stack.Screen>
+              )}
+              {state.userRole === 'inventory' && (
+                <Stack.Screen name="Inventory" options={{ animationEnabled: false }}>
+                  {(props) => <InventoryNavigator {...props} onSignOut={handleSignOut} />}
+                </Stack.Screen>
+              )}
               {state.userRole === 'promotion' && <Stack.Screen name="Promotion" component={PromotionNavigator} options={{ animationEnabled: false }} />}
               {state.userRole === 'order' && <Stack.Screen name="Order" component={OrderNavigator} options={{ animationEnabled: false }} />}
               {state.userRole === 'finance' && <Stack.Screen name="Finance" component={FinanceNavigator} options={{ animationEnabled: false }} />}
