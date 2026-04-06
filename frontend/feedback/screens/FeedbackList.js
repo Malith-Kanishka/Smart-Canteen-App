@@ -102,7 +102,7 @@ const FeedbackList = ({ navigation }) => {
         renderItem={renderFeedbackCard}
         keyExtractor={(item) => item._id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent=(
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No feedback found</Text>
           </View>

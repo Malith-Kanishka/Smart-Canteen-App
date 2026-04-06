@@ -97,7 +97,7 @@ const MyOrders = ({ navigation }) => {
         renderItem={renderOrderCard}
         keyExtractor={(item) => item._id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent=(
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No orders yet</Text>
           </View>

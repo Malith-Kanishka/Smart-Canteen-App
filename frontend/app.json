@@ -16,9 +16,6 @@
       },
       "package": "com.smartcanteen.mobile"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
     "plugins": [
       [
         "expo-image-picker",
