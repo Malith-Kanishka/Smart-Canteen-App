@@ -11,12 +11,29 @@ import {
   Image,
   RefreshControl,
   Modal,
-  Platform
+  Platform,
+  Pressable
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../api/axiosConfig';
 import { useAuth } from '../context/AuthContext';
+
+const WebDateInput = ({ value, onChange, style }) => {
+  if (Platform.OS !== 'web') {
+    return null;
+  }
+
+  return (
+    <input
+      type="date"
+      value={value}
+      max={formatDate(new Date())}
+      onChange={(event) => onChange(event.target.value)}
+      style={style}
+    />
+  );
+};
 
 const emptyPasswordForm = {
   currentPassword: '',
@@ -71,13 +88,15 @@ const parseDate = (dateString) => {
   return parsed;
 };
 
-const buildProfilePhotoUri = (profilePhoto) => {
+const buildProfilePhotoUri = (profilePhoto, versionToken) => {
   if (!profilePhoto) {
-    return 'https://via.placeholder.com/160x160.png?text=Profile';
+    // Local SVG data URI placeholder (no external network call)
+    const placeholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" fill="#e5e7eb"/><circle cx="80" cy="50" r="25" fill="#9ca3af"/><ellipse cx="80" cy="110" rx="40" ry="35" fill="#9ca3af"/></svg>`;
+    return `data:image/svg+xml;base64,${typeof btoa !== 'undefined' ? btoa(placeholderSvg) : 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNjAgMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2U1ZTdlYiIvPjxjaXJjbGUgY3g9IjgwIiBjeT0iNTAiIHI9IjI1IiBmaWxsPSIjOWNhM2FmIi8+PGVsbGlwc2UgY3g9IjgwIiBjeT0iMTEwIiByeD0iNDAiIHJ5PSIzNSIgZmlsbD0iIzljYTNhZiIvPjwvc3ZnPg=='}`;
   }
 
   const serverBaseUrl = api.defaults.baseURL.replace(/\/api\/?$/, '');
-  return `${serverBaseUrl}${profilePhoto}`;
+  return `${serverBaseUrl}${profilePhoto}?v=${versionToken}`;
 };
 
 const ProfileScreen = ({ userRole }) => {
@@ -89,7 +108,11 @@ const ProfileScreen = ({ userRole }) => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState('');
+  const [passwordMessageType, setPasswordMessageType] = useState('error');
   const [error, setError] = useState('');
+  const [photoVersion, setPhotoVersion] = useState(Date.now());
 
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -130,6 +153,7 @@ const ProfileScreen = ({ userRole }) => {
     try {
       const { data } = await api.get(`/${effectiveRole}/profile`);
       setProfile(data);
+      setPhotoVersion(Date.now());
       syncEditForm(data);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load profile');
@@ -194,21 +218,42 @@ const ProfileScreen = ({ userRole }) => {
 
   const changePassword = async () => {
     if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-      Alert.alert('Missing details', 'Fill in all password fields.');
+      setPasswordMessageType('error');
+      setPasswordMessage('Fill in all password fields.');
       return;
     }
 
-    setSaving(true);
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordMessageType('error');
+      setPasswordMessage('New password and confirmation do not match.');
+      return;
+    }
+
+    // Password must be at least 8 chars with letters and numbers
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(passwordForm.newPassword)) {
+      setPasswordMessageType('error');
+      setPasswordMessage('Password must be at least 8 characters and include both letters and numbers.');
+      return;
+    }
+
+    setPasswordMessage('');
+    setPasswordSaving(true);
 
     try {
-      await api.put(`/${effectiveRole}/change-password`, passwordForm);
+      const { data } = await api.put(`/${effectiveRole}/change-password`, passwordForm);
+      console.log('Password change response:', data);
+      setPasswordMessageType('success');
+      setPasswordMessage('Password changed successfully.');
       setPasswordOpen(false);
       setPasswordForm(emptyPasswordForm);
       Alert.alert('Success', 'Password changed successfully');
     } catch (err) {
-      Alert.alert('Password change failed', err.response?.data?.message || 'Unable to change password');
+      console.error('Password change error:', err.response?.data || err.message);
+      const errorMsg = err.response?.data?.message || err.message || 'Unable to change password';
+      setPasswordMessageType('error');
+      setPasswordMessage(errorMsg);
     } finally {
-      setSaving(false);
+      setPasswordSaving(false);
     }
   };
 
@@ -232,18 +277,40 @@ const ProfileScreen = ({ userRole }) => {
     const asset = result.assets[0];
     const nextPhotoNameBase = profile?.userId || profile?.staffId || 'user';
     const formData = new FormData();
-    formData.append('photo', {
-      uri: asset.uri,
-      name: `${nextPhotoNameBase}-${Date.now()}.jpg`,
-      type: asset.mimeType || 'image/jpeg'
-    });
+    const extension = (asset.fileName || asset.uri || '').match(/\.[a-zA-Z0-9]+$/)?.[0] || '.jpg';
+    const fileName = `${nextPhotoNameBase}-${Date.now()}${extension}`;
+
+    if (Platform.OS === 'web') {
+      // On web, expo-image-picker may return asset.file (File object) or a blob/data URI.
+      if (asset.file) {
+        formData.append('photo', asset.file, fileName);
+      } else {
+        // Convert blob/data URI to a Blob and append
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        formData.append('photo', blob, fileName);
+      }
+    } else {
+      formData.append('photo', {
+        uri: asset.uri,
+        name: fileName,
+        type: asset.mimeType || 'image/jpeg'
+      });
+    }
 
     try {
+      // Do NOT manually set Content-Type on web — the browser sets it with the boundary automatically.
+      // On native we must set it explicitly.
+      const uploadHeaders = Platform.OS === 'web'
+        ? {}
+        : { 'Content-Type': 'multipart/form-data' };
+
       const { data } = await api.post(`/${effectiveRole}/profile/photo`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: uploadHeaders
       });
       if (data?.profilePhoto) {
         setProfile((prev) => ({ ...(prev || {}), profilePhoto: data.profilePhoto }));
+        setPhotoVersion(Date.now());
       }
       await fetchProfile();
       Alert.alert('Success', 'Profile photo uploaded successfully');
@@ -256,6 +323,7 @@ const ProfileScreen = ({ userRole }) => {
     try {
       await api.delete(`/${effectiveRole}/profile/photo`);
       setProfile((prev) => ({ ...(prev || {}), profilePhoto: null }));
+      setPhotoVersion(Date.now());
       await fetchProfile();
       Alert.alert('Success', 'Profile photo deleted successfully');
     } catch (err) {
@@ -335,7 +403,7 @@ const ProfileScreen = ({ userRole }) => {
         {!!error && <Text style={styles.errorText}>{error}</Text>}
 
         <View style={styles.card}>
-          <Image source={{ uri: buildProfilePhotoUri(profile?.profilePhoto) }} style={styles.avatar} />
+          <Image source={{ uri: buildProfilePhotoUri(profile?.profilePhoto, photoVersion) }} style={styles.avatar} />
 
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.smallButton} onPress={pickPhoto}>
@@ -388,25 +456,35 @@ const ProfileScreen = ({ userRole }) => {
               <Text style={styles.fieldLabel}>Address</Text>
               <TextInput style={styles.input} placeholder="Address" value={editForm.address} onChangeText={(value) => updateEditField('address', value)} />
               <Text style={styles.fieldLabel}>Date of Birth</Text>
-              <TouchableOpacity style={styles.dateInput} onPress={() => setShowEditDobPicker(true)}>
-                <Text style={editForm.dateOfBirth ? styles.dateValue : styles.datePlaceholder}>
-                  {editForm.dateOfBirth || 'Select Date of Birth'}
-                </Text>
-              </TouchableOpacity>
-
-              {showEditDobPicker && (
-                <DateTimePicker
-                  value={parseDate(editForm.dateOfBirth)}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  maximumDate={new Date()}
-                  onChange={(_event, selectedDate) => {
-                    setShowEditDobPicker(false);
-                    if (selectedDate) {
-                      updateEditField('dateOfBirth', formatDate(selectedDate));
-                    }
-                  }}
+              {Platform.OS === 'web' ? (
+                <WebDateInput
+                  value={editForm.dateOfBirth}
+                  onChange={(value) => updateEditField('dateOfBirth', value)}
+                  style={styles.webDateInput}
                 />
+              ) : (
+                <>
+                  <TouchableOpacity style={styles.dateInput} onPress={() => setShowEditDobPicker(true)}>
+                    <Text style={editForm.dateOfBirth ? styles.dateValue : styles.datePlaceholder}>
+                      {editForm.dateOfBirth || 'Select Date of Birth'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {showEditDobPicker && (
+                    <DateTimePicker
+                      value={parseDate(editForm.dateOfBirth)}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      maximumDate={new Date()}
+                      onChange={(_event, selectedDate) => {
+                        setShowEditDobPicker(false);
+                        if (selectedDate) {
+                          updateEditField('dateOfBirth', formatDate(selectedDate));
+                        }
+                      }}
+                    />
+                  )}
+                </>
               )}
 
               <TouchableOpacity style={styles.primaryButton} onPress={saveProfile} disabled={saving}>
@@ -427,23 +505,66 @@ const ProfileScreen = ({ userRole }) => {
         </View>
       </Modal>
 
-      <Modal visible={passwordOpen} animationType="slide" transparent>
+      <Modal visible={passwordOpen} animationType="fade" transparent onRequestClose={() => setPasswordOpen(false)}>
         <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPasswordOpen(false)} />
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Change Password</Text>
-            <TextInput style={styles.input} placeholder="Current Password" value={passwordForm.currentPassword} onChangeText={(value) => updatePasswordField('currentPassword', value)} secureTextEntry />
-            <TextInput style={styles.input} placeholder="New Password" value={passwordForm.newPassword} onChangeText={(value) => updatePasswordField('newPassword', value)} secureTextEntry />
-            <TextInput style={styles.input} placeholder="Confirm New Password" value={passwordForm.confirmPassword} onChangeText={(value) => updatePasswordField('confirmPassword', value)} secureTextEntry />
+            <TextInput 
+              style={styles.input} 
+              placeholder="Current Password" 
+              value={passwordForm.currentPassword} 
+              onChangeText={(value) => updatePasswordField('currentPassword', value)} 
+              secureTextEntry
+              editable={!passwordSaving}
+            />
+            <TextInput 
+              style={styles.input} 
+              placeholder="New Password" 
+              value={passwordForm.newPassword} 
+              onChangeText={(value) => updatePasswordField('newPassword', value)} 
+              secureTextEntry
+              editable={!passwordSaving}
+            />
+            <TextInput 
+              style={styles.input} 
+              placeholder="Confirm New Password" 
+              value={passwordForm.confirmPassword} 
+              onChangeText={(value) => updatePasswordField('confirmPassword', value)} 
+              secureTextEntry
+              editable={!passwordSaving}
+            />
 
-            <TouchableOpacity style={styles.primaryButton} onPress={changePassword} disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Update Password</Text>}
+            {!!passwordMessage && (
+              <Text style={passwordMessageType === 'success' ? styles.successText : styles.errorText}>
+                {passwordMessage}
+              </Text>
+            )}
+
+            <TouchableOpacity 
+              style={[styles.primaryButton, passwordSaving && styles.buttonDisabled]} 
+              onPress={changePassword} 
+              disabled={passwordSaving}
+              activeOpacity={passwordSaving ? 1 : 0.7}
+            >
+              {passwordSaving ? (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator color="#fff" />
+                  <Text style={styles.primaryButtonText}>Updating...</Text>
+                </View>
+              ) : (
+                <Text style={styles.primaryButtonText}>Update Password</Text>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.secondaryButton}
               onPress={() => {
                 setPasswordForm(emptyPasswordForm);
+                setPasswordMessage('');
                 setPasswordOpen(false);
               }}
+              disabled={passwordSaving}
+              activeOpacity={passwordSaving ? 1 : 0.7}
             >
               <Text style={styles.secondaryButtonText}>Cancel</Text>
             </TouchableOpacity>
@@ -474,6 +595,10 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#dc2626',
+    marginBottom: 8
+  },
+  successText: {
+    color: '#059669',
     marginBottom: 8
   },
   card: {
@@ -549,9 +674,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 10
   },
+  buttonDisabled: {
+    backgroundColor: '#9ca3af',
+    opacity: 0.6
+  },
   primaryButtonText: {
     color: '#fff',
     fontWeight: '700'
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
   },
   secondaryButton: {
     borderWidth: 1,
@@ -626,6 +760,18 @@ const styles = StyleSheet.create({
   dateValue: {
     color: '#111827',
     fontSize: 15
+  },
+  webDateInput: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 8,
+    fontSize: 15,
+    boxSizing: 'border-box'
   }
 });
 

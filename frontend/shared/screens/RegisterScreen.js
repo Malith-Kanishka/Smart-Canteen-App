@@ -12,6 +12,23 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../api/axiosConfig';
 
+const WebDateInput = ({ value, onChange, disabled, style }) => {
+  if (Platform.OS !== 'web') {
+    return null;
+  }
+
+  return (
+    <input
+      type="date"
+      value={value}
+      max={formatDate(new Date())}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+      style={style}
+    />
+  );
+};
+
 const isOldEnough = (dateOfBirth) => {
   const birthDate = new Date(dateOfBirth);
   if (Number.isNaN(birthDate.getTime())) {
@@ -175,29 +192,40 @@ const RegisterScreen = ({ navigation, onSignIn }) => {
           placeholderTextColor="#999"
         />
 
-        <TouchableOpacity
-          style={styles.dateInput}
-          onPress={() => setShowDobPicker(true)}
-          disabled={loading}
-        >
-          <Text style={form.dateOfBirth ? styles.dateValue : styles.datePlaceholder}>
-            {form.dateOfBirth || 'Select Date of Birth'}
-          </Text>
-        </TouchableOpacity>
-
-        {showDobPicker && (
-          <DateTimePicker
-            value={parseDate(form.dateOfBirth)}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            maximumDate={new Date()}
-            onChange={(_event, selectedDate) => {
-              setShowDobPicker(false);
-              if (selectedDate) {
-                updateField('dateOfBirth', formatDate(selectedDate));
-              }
-            }}
+        {Platform.OS === 'web' ? (
+          <WebDateInput
+            value={form.dateOfBirth}
+            onChange={(value) => updateField('dateOfBirth', value)}
+            disabled={loading}
+            style={styles.webDateInput}
           />
+        ) : (
+          <>
+            <TouchableOpacity
+              style={styles.dateInput}
+              onPress={() => setShowDobPicker(true)}
+              disabled={loading}
+            >
+              <Text style={form.dateOfBirth ? styles.dateValue : styles.datePlaceholder}>
+                {form.dateOfBirth || 'Select Date of Birth'}
+              </Text>
+            </TouchableOpacity>
+
+            {showDobPicker && (
+              <DateTimePicker
+                value={parseDate(form.dateOfBirth)}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                maximumDate={new Date()}
+                onChange={(_event, selectedDate) => {
+                  setShowDobPicker(false);
+                  if (selectedDate) {
+                    updateField('dateOfBirth', formatDate(selectedDate));
+                  }
+                }}
+              />
+            )}
+          </>
         )}
 
         <TextInput
@@ -221,8 +249,6 @@ const RegisterScreen = ({ navigation, onSignIn }) => {
         />
 
         {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-        <Text style={styles.helperText}>A user ID like U001 will be created automatically after registration.</Text>
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
@@ -291,6 +317,17 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontSize: 16
   },
+  webDateInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 8,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    boxSizing: 'border-box'
+  },
   button: {
     backgroundColor: '#1abc9c',
     padding: 14,
@@ -310,12 +347,6 @@ const styles = StyleSheet.create({
     color: '#e74c3c',
     textAlign: 'center',
     marginBottom: 8
-  },
-  helperText: {
-    color: '#7f8c8d',
-    textAlign: 'center',
-    marginBottom: 8,
-    fontSize: 12
   },
   linkText: {
     color: '#1abc9c',
