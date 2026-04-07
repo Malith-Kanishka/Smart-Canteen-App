@@ -4,10 +4,15 @@ const bcrypt = require('bcryptjs');
 // User Schema - for all roles
 const userSchema = new mongoose.Schema(
   {
+    userId: {
+      type: String,
+      unique: true,
+      sparse: true
+    },
     staffId: {
       type: String,
       unique: true,
-      sparse: true // Customers don't have staffId
+      sparse: true
     },
     username: {
       type: String,

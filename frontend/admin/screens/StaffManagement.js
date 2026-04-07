@@ -10,7 +10,8 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
-  Platform
+  Platform,
+  ScrollView
 } from 'react-native';
 import api from '../../shared/api/axiosConfig';
 
@@ -18,7 +19,9 @@ const roleOptions = ['all', 'admin', 'foodmaster', 'inventory', 'promotion', 'or
 
 const emptyEdit = {
   _id: '',
+  userId: '',
   fullName: '',
+  username: '',
   nic: '',
   email: '',
   phone: '',
@@ -26,6 +29,9 @@ const emptyEdit = {
   dateOfBirth: '',
   role: 'foodmaster'
 };
+
+const formatDate = (value) => (value ? String(value).slice(0, 10) : '');
+const formatDisplay = (value) => (value ? value : '-');
 
 const StaffManagement = () => {
   const [staffList, setStaffList] = useState([]);
@@ -41,6 +47,7 @@ const StaffManagement = () => {
   const fetchStaff = useCallback(async () => {
     setLoading(true);
     setError('');
+
     try {
       const params = {};
       if (search.trim()) {
@@ -72,12 +79,14 @@ const StaffManagement = () => {
   const openEdit = (item) => {
     setEditForm({
       _id: item._id,
+      userId: item.userId || item.staffId || '',
       fullName: item.fullName || '',
+      username: item.username || '',
       nic: item.nic || '',
       email: item.email || '',
       phone: item.phone || '',
       address: item.address || '',
-      dateOfBirth: item.dateOfBirth ? String(item.dateOfBirth).slice(0, 10) : '',
+      dateOfBirth: formatDate(item.dateOfBirth),
       role: item.role || 'foodmaster'
     });
     setEditModal(true);
@@ -100,17 +109,19 @@ const StaffManagement = () => {
 
     setSaving(true);
     setError('');
+
     try {
-      const payload = {
-        fullName: editForm.fullName,
-        nic: editForm.nic,
-        email: editForm.email,
-        phone: editForm.phone,
-        address: editForm.address,
-        dateOfBirth: editForm.dateOfBirth,
+      await api.put(`/admin/staff/${editForm._id}`, {
+        fullName: editForm.fullName.trim(),
+        username: editForm.username.trim(),
+        nic: editForm.nic.trim(),
+        email: editForm.email.trim(),
+        phone: editForm.phone.trim(),
+        address: editForm.address.trim(),
+        dateOfBirth: editForm.dateOfBirth || null,
         role: editForm.role
-      };
-      await api.put(`/admin/staff/${editForm._id}`, payload);
+      });
+
       closeEdit();
       await fetchStaff();
       Alert.alert('Success', 'Staff member updated successfully');
@@ -121,36 +132,27 @@ const StaffManagement = () => {
     }
   };
 
+  const performDelete = async (id) => {
+    try {
+      await api.delete(`/admin/staff/${id}`);
+      await fetchStaff();
+    } catch (err) {
+      Alert.alert('Delete failed', err.response?.data?.message || 'Unable to delete staff');
+    }
+  };
+
   const deleteStaff = async (id, name) => {
     if (Platform.OS === 'web') {
       const confirmed = typeof window !== 'undefined' ? window.confirm(`Delete ${name}?`) : true;
-      if (!confirmed) {
-        return;
-      }
-
-      try {
-        await api.delete(`/admin/staff/${id}`);
-        await fetchStaff();
-      } catch (err) {
-        Alert.alert('Delete failed', err.response?.data?.message || 'Unable to delete staff');
+      if (confirmed) {
+        await performDelete(id);
       }
       return;
     }
 
     Alert.alert('Delete Staff', `Delete ${name}?`, [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.delete(`/admin/staff/${id}`);
-            await fetchStaff();
-          } catch (err) {
-            Alert.alert('Delete failed', err.response?.data?.message || 'Unable to delete staff');
-          }
-        }
-      }
+      { text: 'Delete', style: 'destructive', onPress: () => performDelete(id) }
     ]);
   };
 
@@ -160,12 +162,16 @@ const StaffManagement = () => {
     <View style={styles.rowCard}>
       <View style={styles.rowTop}>
         <Text style={styles.name}>{item.fullName}</Text>
-        <Text style={styles.staffId}>{item.staffId || 'No ID'}</Text>
+        <Text style={styles.userId}>{item.userId || item.staffId || '-'}</Text>
       </View>
-      <Text style={styles.meta}>NIC: {item.nic || '-'}</Text>
-      <Text style={styles.meta}>Email: {item.email || '-'}</Text>
-      <Text style={styles.meta}>Phone: {item.phone || '-'}</Text>
-      <Text style={styles.meta}>Role: {item.role}</Text>
+
+      <Text style={styles.meta}>Username: {formatDisplay(item.username)}</Text>
+      <Text style={styles.meta}>Role: {formatDisplay(item.role)}</Text>
+      <Text style={styles.meta}>NIC: {formatDisplay(item.nic)}</Text>
+      <Text style={styles.meta}>Email: {formatDisplay(item.email)}</Text>
+      <Text style={styles.meta}>Phone: {formatDisplay(item.phone)}</Text>
+      <Text style={styles.meta}>Address: {formatDisplay(item.address)}</Text>
+      <Text style={styles.meta}>DOB: {formatDisplay(formatDate(item.dateOfBirth))}</Text>
 
       <View style={styles.actionsRow}>
         <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(item)}>
@@ -184,7 +190,7 @@ const StaffManagement = () => {
 
       <TextInput
         style={styles.input}
-        placeholder="Search by name or staff ID"
+        placeholder="Search by name, user ID, or username"
         value={search}
         onChangeText={setSearch}
       />
@@ -205,13 +211,13 @@ const StaffManagement = () => {
       {!!error && <Text style={styles.errorText}>{error}</Text>}
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1abc9c" style={{ marginTop: 20 }} />
+        <ActivityIndicator size="large" color="#1abc9c" style={styles.loader} />
       ) : (
         <FlatList
           data={staffList}
           keyExtractor={(item) => item._id}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 30 }}
+          contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={<Text style={styles.emptyText}>No staff found</Text>}
         />
@@ -220,34 +226,37 @@ const StaffManagement = () => {
       <Modal visible={editModal} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit Staff</Text>
+            <ScrollView>
+              <Text style={styles.modalTitle}>Edit Staff</Text>
+              <Text style={styles.readOnlyText}>User ID: {formatDisplay(editForm.userId)}</Text>
+              <TextInput style={styles.input} placeholder="Full Name" value={editForm.fullName} onChangeText={(value) => updateField('fullName', value)} />
+              <TextInput style={styles.input} placeholder="Username" value={editForm.username} onChangeText={(value) => updateField('username', value)} autoCapitalize="none" />
+              <TextInput style={styles.input} placeholder="NIC" value={editForm.nic} onChangeText={(value) => updateField('nic', value)} />
+              <TextInput style={styles.input} placeholder="Email" value={editForm.email} onChangeText={(value) => updateField('email', value)} autoCapitalize="none" keyboardType="email-address" />
+              <TextInput style={styles.input} placeholder="Phone" value={editForm.phone} onChangeText={(value) => updateField('phone', value)} keyboardType="phone-pad" />
+              <TextInput style={styles.input} placeholder="Address" value={editForm.address} onChangeText={(value) => updateField('address', value)} />
+              <TextInput style={styles.input} placeholder="DOB (YYYY-MM-DD)" value={editForm.dateOfBirth} onChangeText={(value) => updateField('dateOfBirth', value)} />
 
-            <TextInput style={styles.input} placeholder="Full Name" value={editForm.fullName} onChangeText={(v) => updateField('fullName', v)} />
-            <TextInput style={styles.input} placeholder="NIC" value={editForm.nic} onChangeText={(v) => updateField('nic', v)} />
-            <TextInput style={styles.input} placeholder="Email" value={editForm.email} onChangeText={(v) => updateField('email', v)} autoCapitalize="none" />
-            <TextInput style={styles.input} placeholder="Phone" value={editForm.phone} onChangeText={(v) => updateField('phone', v)} />
-            <TextInput style={styles.input} placeholder="Address" value={editForm.address} onChangeText={(v) => updateField('address', v)} />
-            <TextInput style={styles.input} placeholder="DOB (YYYY-MM-DD)" value={editForm.dateOfBirth} onChangeText={(v) => updateField('dateOfBirth', v)} />
+              <Text style={styles.smallHeading}>Role</Text>
+              <View style={styles.filterWrap}>
+                {roleOptions.filter((role) => role !== 'all').map((role) => (
+                  <TouchableOpacity
+                    key={role}
+                    style={[styles.filterChip, editForm.role === role && styles.filterChipActive]}
+                    onPress={() => updateField('role', role)}
+                  >
+                    <Text style={[styles.filterText, editForm.role === role && styles.filterTextActive]}>{role}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            <Text style={styles.smallHeading}>Role</Text>
-            <View style={styles.filterWrap}>
-              {roleOptions.filter((r) => r !== 'all').map((role) => (
-                <TouchableOpacity
-                  key={role}
-                  style={[styles.filterChip, editForm.role === role && styles.filterChipActive]}
-                  onPress={() => updateField('role', role)}
-                >
-                  <Text style={[styles.filterText, editForm.role === role && styles.filterTextActive]}>{role}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <TouchableOpacity style={styles.primaryButton} onPress={submitUpdate} disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Update Staff</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton} onPress={closeEdit}>
-              <Text style={styles.secondaryButtonText}>Cancel</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.primaryButton} onPress={submitUpdate} disabled={saving}>
+                {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Update Staff</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryButton} onPress={closeEdit}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -273,26 +282,29 @@ const styles = StyleSheet.create({
   filterText: { color: '#334155', textTransform: 'capitalize', fontSize: 12 },
   filterTextActive: { color: '#115e59', fontWeight: '700' },
   countText: { color: '#475569', marginBottom: 6 },
+  errorText: { color: '#dc2626', marginBottom: 6 },
+  loader: { marginTop: 20 },
+  listContent: { paddingBottom: 30 },
   rowCard: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 10, elevation: 1 },
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between' },
-  name: { fontWeight: '700', color: '#111827', fontSize: 16 },
-  staffId: { color: '#0f766e', fontWeight: '700' },
+  rowTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  name: { fontWeight: '700', color: '#111827', fontSize: 16, flex: 1 },
+  userId: { color: '#0f766e', fontWeight: '700' },
   meta: { color: '#475569', marginTop: 3 },
   actionsRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
   editBtn: { flex: 1, backgroundColor: '#0ea5a2', borderRadius: 8, alignItems: 'center', paddingVertical: 10 },
   editBtnText: { color: '#fff', fontWeight: '700' },
   deleteBtn: { flex: 1, backgroundColor: '#ef4444', borderRadius: 8, alignItems: 'center', paddingVertical: 10 },
   deleteBtnText: { color: '#fff', fontWeight: '700' },
+  emptyText: { textAlign: 'center', color: '#64748b', marginTop: 20 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', padding: 14 },
-  modalCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14 },
+  modalCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14, maxHeight: '92%' },
   modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 10, color: '#1f2937' },
+  readOnlyText: { color: '#475569', marginBottom: 8, fontWeight: '600' },
   smallHeading: { color: '#1f2937', fontWeight: '700', marginTop: 2, marginBottom: 8 },
   primaryButton: { backgroundColor: '#0ea5a2', borderRadius: 8, alignItems: 'center', paddingVertical: 12, marginTop: 8 },
   primaryButtonText: { color: '#fff', fontWeight: '700' },
   secondaryButton: { borderWidth: 1, borderColor: '#94a3b8', borderRadius: 8, alignItems: 'center', paddingVertical: 11, marginTop: 8 },
-  secondaryButtonText: { color: '#334155', fontWeight: '600' },
-  errorText: { color: '#dc2626', marginBottom: 6 },
-  emptyText: { textAlign: 'center', color: '#64748b', marginTop: 20 }
+  secondaryButtonText: { color: '#334155', fontWeight: '600' }
 });
 
 export default StaffManagement;

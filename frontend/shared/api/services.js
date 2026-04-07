@@ -6,8 +6,7 @@ import api from './axiosConfig';
 export const authService = {
   login: (username, password) =>
     api.post('/auth/login', { username, password }),
-  registerCustomer: (fullName, username, email, phone, password) =>
-    api.post('/auth/register', { fullName, username, email, phone, password }),
+  registerCustomer: (data) => api.post('/auth/register', data),
   verify: () => api.get('/auth/verify'),
   logout: () => api.post('/auth/logout'),
 };
@@ -156,6 +155,7 @@ export const adminService = {
   deleteStaff: (id) => api.delete(`/admin/staff/${id}`),
 
   getCustomers: (search) => api.get('/admin/customers', { params: { search } }),
+  updateCustomer: (id, data) => api.put(`/admin/customers/${id}`, data),
   deleteCustomer: (id) => api.delete(`/admin/customers/${id}`),
 };
 

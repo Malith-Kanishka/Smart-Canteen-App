@@ -71,6 +71,8 @@ const AdminDashboard = () => {
   const closeModal = () => {
     setModalVisible(false);
     setForm(defaultForm);
+    setCreatedCredentials(null);
+    setError('');
   };
 
   const submitNewStaff = async () => {
@@ -82,9 +84,6 @@ const AdminDashboard = () => {
       const { data } = await api.post('/admin/staff', form);
       setCreatedCredentials(data.generatedCredentials);
       await fetchDashboard();
-      setTimeout(() => {
-        closeModal();
-      }, 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create staff');
     } finally {
@@ -138,6 +137,7 @@ const AdminDashboard = () => {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Add New Staff Member</Text>
+            <Text style={styles.infoText}>User ID is generated automatically. Username defaults to the staff member's full name. Password defaults to the NIC number.</Text>
 
             <ScrollView>
               <TextInput style={styles.input} placeholder="Full Name" value={form.fullName} onChangeText={(v) => updateField('fullName', v)} />
@@ -165,7 +165,7 @@ const AdminDashboard = () => {
               {createdCredentials && (
                 <View style={styles.successBox}>
                   <Text style={styles.successTitle}>Staff Created</Text>
-                  <Text style={styles.successText}>Staff ID: {createdCredentials.staffId}</Text>
+                  <Text style={styles.successText}>User ID: {createdCredentials.userId}</Text>
                   <Text style={styles.successText}>Username: {createdCredentials.username}</Text>
                   <Text style={styles.successText}>Password: {createdCredentials.password}</Text>
                 </View>
@@ -231,6 +231,7 @@ const styles = StyleSheet.create({
   secondaryButton: { borderWidth: 1, borderColor: '#94a3b8', paddingVertical: 11, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   secondaryButtonText: { color: '#334155', fontWeight: '600' },
   errorText: { color: '#dc2626', marginTop: 4, marginBottom: 6 },
+  infoText: { color: '#475569', marginBottom: 10, lineHeight: 20 },
   successBox: { backgroundColor: '#ecfdf5', borderWidth: 1, borderColor: '#6ee7b7', borderRadius: 8, padding: 10, marginVertical: 6 },
   successTitle: { fontWeight: '700', color: '#166534', marginBottom: 4 },
   successText: { color: '#166534' }

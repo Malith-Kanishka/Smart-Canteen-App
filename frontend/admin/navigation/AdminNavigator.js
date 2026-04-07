@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AdminDashboard from '../screens/AdminDashboard';
 import StaffManagement from '../screens/StaffManagement';
 import CustomerManagement from '../screens/CustomerManagement';
-import MySecurityProfile from '../screens/MySecurityProfile';
+import ProfileScreen from '../../shared/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -22,7 +22,7 @@ const AdminTabs = ({ onSignOut }) => {
       <Tab.Screen name="Staff" component={StaffManagement} />
       <Tab.Screen name="Customers" component={CustomerManagement} />
       <Tab.Screen name="SecurityProfile">
-        {(props) => <MySecurityProfile {...props} onSignOut={onSignOut} />}
+        {(props) => <ProfileScreen {...props} userRole="admin" />}
       </Tab.Screen>
     </Tab.Navigator>
   );

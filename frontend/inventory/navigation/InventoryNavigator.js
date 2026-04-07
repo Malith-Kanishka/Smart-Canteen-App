@@ -2,7 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import StockDashboard from '../screens/StockDashboard';
-import InventoryProfile from '../screens/InventoryProfile';
+import ProfileScreen from '../../shared/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -18,7 +18,7 @@ const InventoryTabs = ({ onSignOut }) => {
     >
       <Tab.Screen name="Dashboard" component={StockDashboard} options={{ title: 'Stock' }} />
       <Tab.Screen name="Profile" options={{ title: 'Profile' }}>
-        {(props) => <InventoryProfile {...props} onSignOut={onSignOut} />}
+        {(props) => <ProfileScreen {...props} userRole="inventory" />}
       </Tab.Screen>
     </Tab.Navigator>
   );

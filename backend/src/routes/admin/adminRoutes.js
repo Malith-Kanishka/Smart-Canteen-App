@@ -19,6 +19,8 @@ router.delete('/staff/:id', auth, roleAccess('admin'), adminController.deleteSta
 // Customer Management
 router.get('/customers', auth, roleAccess('admin'), adminController.getCustomers);
 
+router.put('/customers/:id', auth, roleAccess('admin'), adminController.updateCustomer);
+
 router.delete('/customers/:id', auth, roleAccess('admin'), adminController.deleteCustomer);
 
 // Profile Management

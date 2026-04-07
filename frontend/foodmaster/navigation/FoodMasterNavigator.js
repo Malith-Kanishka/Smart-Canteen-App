@@ -2,7 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import FoodMasterMenu from '../screens/FoodMasterMenu';
-import FoodMasterProfile from '../screens/FoodMasterProfile';
+import ProfileScreen from '../../shared/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -18,7 +18,7 @@ const FoodMasterTabs = ({ onSignOut }) => {
     >
       <Tab.Screen name="MenuCatalog" component={FoodMasterMenu} options={{ title: 'Menu' }} />
       <Tab.Screen name="Profile" options={{ title: 'Profile' }}>
-        {(props) => <FoodMasterProfile {...props} onSignOut={onSignOut} />}
+        {(props) => <ProfileScreen {...props} userRole="foodmaster" />}
       </Tab.Screen>
     </Tab.Navigator>
   );

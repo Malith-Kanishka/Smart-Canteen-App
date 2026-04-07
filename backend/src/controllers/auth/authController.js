@@ -1,27 +1,10 @@
 const User = require('../../models/User');
 const { generateToken } = require('../../middleware/auth');
-const { validateEmail, validatePhone } = require('../../utils/validators');
+const { validateNIC, validateEmail, validatePhone } = require('../../utils/validators');
+const { generateNextUserId, normalizeUsername } = require('../../utils/userIdentity');
+const { sanitizeUser } = require('../../utils/profileHandlers');
 
 const KNOWN_ROLES = new Set(['admin', 'foodmaster', 'inventory', 'promotion', 'order', 'finance', 'feedback', 'customer']);
-
-const sanitizeUser = (user) => {
-  const plain = user.toObject();
-  delete plain.password;
-  return plain;
-};
-
-const buildUniqueUsername = async (baseUsername) => {
-  const normalized = baseUsername.toLowerCase().trim();
-  let attempt = normalized;
-  let counter = 1;
-
-  while (await User.exists({ username: attempt })) {
-    attempt = `${normalized}${counter}`;
-    counter += 1;
-  }
-
-  return attempt;
-};
 
 exports.login = async (req, res) => {
   try {
@@ -56,10 +39,14 @@ exports.login = async (req, res) => {
 
 exports.registerCustomer = async (req, res) => {
   try {
-    const { fullName, username, password, email, phone, address, dateOfBirth } = req.body;
+    const { fullName, username, password, nic, email, phone, address, dateOfBirth } = req.body;
 
-    if (!fullName || !username || !password || !email || !phone) {
-      return res.status(400).json({ message: 'Full name, username, password, email, and phone are required' });
+    if (!fullName || !username || !password || !nic || !email || !phone || !address || !dateOfBirth) {
+      return res.status(400).json({ message: 'Full name, username, password, NIC, email, phone, address, and DOB are required' });
+    }
+
+    if (!validateNIC(String(nic).trim())) {
+      return res.status(400).json({ message: 'Invalid NIC format' });
     }
 
     if (!validateEmail(email)) {
@@ -74,26 +61,43 @@ exports.registerCustomer = async (req, res) => {
       return res.status(400).json({ message: 'Password must be at least 8 characters long' });
     }
 
-    const normalizedUsername = username.toLowerCase().trim();
+    const birthDate = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDifference = today.getMonth() - birthDate.getMonth();
+    if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
+      age -= 1;
+    }
+
+    if (Number.isNaN(birthDate.getTime()) || age < 17) {
+      return res.status(400).json({ message: 'Customer age must be greater than 16' });
+    }
+
+    const normalizedUsername = normalizeUsername(username);
     const existingUser = await User.findOne({
-      $or: [{ username: normalizedUsername }, { email: email.toLowerCase().trim() }]
+      $or: [
+        { username: normalizedUsername },
+        { nic: String(nic).trim() },
+        { email: email.toLowerCase().trim() },
+        { phone: phone.trim() }
+      ]
     });
 
     if (existingUser) {
-      return res.status(409).json({ message: 'Username or email already exists' });
+      return res.status(409).json({ message: 'Username, NIC, email, or phone already exists' });
     }
 
-    const uniqueUsername = await buildUniqueUsername(normalizedUsername);
-
     const customer = await User.create({
+      userId: await generateNextUserId(),
       fullName: fullName.trim(),
-      username: uniqueUsername,
+      username: normalizedUsername,
       password,
+      nic: String(nic).trim(),
       email: email.toLowerCase().trim(),
-      phone,
+      phone: phone.trim(),
       role: 'customer',
-      address: address || '',
-      dateOfBirth: dateOfBirth || null
+      address: address.trim(),
+      dateOfBirth: birthDate
     });
 
     const token = generateToken(customer._id, customer.role);

@@ -1,6 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const User = require('../models/User');
 
 // Ensure upload directories exist
 const ensureUploadDirs = () => {
@@ -27,8 +28,22 @@ const profileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, './uploads/profile-pictures');
   },
-  filename: (req, file, cb) => {
-    cb(null, `profile-${Date.now()}${path.extname(file.originalname)}`);
+  filename: async (req, file, cb) => {
+    try {
+      const extension = path.extname(file.originalname).toLowerCase() || '.jpg';
+      const authUserId = req.user?.id || req.user?.userId;
+      let identity = authUserId ? String(authUserId) : 'user';
+
+      if (authUserId) {
+        const user = await User.findById(authUserId).select('userId staffId');
+        identity = user?.userId || user?.staffId || identity;
+      }
+
+      const safeIdentity = String(identity).replace(/[^a-zA-Z0-9_-]/g, '');
+      cb(null, `${safeIdentity}-${Date.now()}${extension}`);
+    } catch (error) {
+      cb(error);
+    }
   }
 });
 
