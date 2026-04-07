@@ -13,6 +13,7 @@ import {
   Modal,
   ScrollView
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../../shared/api/axiosConfig';
 
 const emptyEdit = {
@@ -20,13 +21,58 @@ const emptyEdit = {
   userId: '',
   fullName: '',
   username: '',
+  nic: '',
   email: '',
   phone: '',
   address: '',
   dateOfBirth: ''
 };
 
-const formatDate = (value) => (value ? String(value).slice(0, 10) : '');
+const formatDate = (value) => {
+  if (!value) {
+    return '';
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseDate = (dateString) => {
+  if (!dateString) {
+    return new Date(2000, 0, 1);
+  }
+
+  const parsed = new Date(dateString);
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date(2000, 0, 1);
+  }
+
+  return parsed;
+};
+
+const WebDateInput = ({ value, onChange, style }) => {
+  if (Platform.OS !== 'web') {
+    return null;
+  }
+
+  return (
+    <input
+      type="date"
+      value={value}
+      max={formatDate(new Date())}
+      onChange={(event) => onChange(event.target.value)}
+      style={style}
+    />
+  );
+};
+
 const formatDisplay = (value) => (value ? value : '-');
 
 const CustomerManagement = () => {
@@ -38,6 +84,7 @@ const CustomerManagement = () => {
   const [error, setError] = useState('');
   const [editModal, setEditModal] = useState(false);
   const [editForm, setEditForm] = useState(emptyEdit);
+  const [showDobPicker, setShowDobPicker] = useState(false);
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
@@ -74,6 +121,7 @@ const CustomerManagement = () => {
       userId: item.userId || item.staffId || '',
       fullName: item.fullName || '',
       username: item.username || '',
+      nic: item.nic || '',
       email: item.email || '',
       phone: item.phone || '',
       address: item.address || '',
@@ -83,6 +131,7 @@ const CustomerManagement = () => {
   };
 
   const closeEdit = () => {
+    setShowDobPicker(false);
     setEditModal(false);
     setEditForm(emptyEdit);
   };
@@ -104,6 +153,7 @@ const CustomerManagement = () => {
       await api.put(`/admin/customers/${editForm._id}`, {
         fullName: editForm.fullName.trim(),
         username: editForm.username.trim(),
+        nic: editForm.nic.trim(),
         email: editForm.email.trim(),
         phone: editForm.phone.trim(),
         address: editForm.address.trim(),
@@ -153,6 +203,7 @@ const CustomerManagement = () => {
 
       <Text style={styles.meta}>Username: {formatDisplay(item.username)}</Text>
       <Text style={styles.meta}>Role: {formatDisplay(item.role)}</Text>
+      <Text style={styles.meta}>NIC: {formatDisplay(item.nic)}</Text>
       <Text style={styles.meta}>Email: {formatDisplay(item.email)}</Text>
       <Text style={styles.meta}>Phone: {formatDisplay(item.phone)}</Text>
       <Text style={styles.meta}>Address: {formatDisplay(item.address)}</Text>
@@ -200,12 +251,48 @@ const CustomerManagement = () => {
             <ScrollView>
               <Text style={styles.modalTitle}>Edit Customer</Text>
               <Text style={styles.readOnlyText}>User ID: {formatDisplay(editForm.userId)}</Text>
+              <Text style={styles.fieldLabel}>Full Name</Text>
               <TextInput style={styles.input} placeholder="Full Name" value={editForm.fullName} onChangeText={(value) => updateField('fullName', value)} />
+              <Text style={styles.fieldLabel}>Username</Text>
               <TextInput style={styles.input} placeholder="Username" value={editForm.username} onChangeText={(value) => updateField('username', value)} autoCapitalize="none" />
+              <Text style={styles.fieldLabel}>NIC</Text>
+              <TextInput style={styles.input} placeholder="NIC" value={editForm.nic} onChangeText={(value) => updateField('nic', value)} autoCapitalize="characters" />
+              <Text style={styles.fieldLabel}>Email</Text>
               <TextInput style={styles.input} placeholder="Email" value={editForm.email} onChangeText={(value) => updateField('email', value)} autoCapitalize="none" keyboardType="email-address" />
+              <Text style={styles.fieldLabel}>Phone</Text>
               <TextInput style={styles.input} placeholder="Phone" value={editForm.phone} onChangeText={(value) => updateField('phone', value)} keyboardType="phone-pad" />
+              <Text style={styles.fieldLabel}>Address</Text>
               <TextInput style={styles.input} placeholder="Address" value={editForm.address} onChangeText={(value) => updateField('address', value)} />
-              <TextInput style={styles.input} placeholder="DOB (YYYY-MM-DD)" value={editForm.dateOfBirth} onChangeText={(value) => updateField('dateOfBirth', value)} />
+              <Text style={styles.fieldLabel}>Date of Birth</Text>
+              {Platform.OS === 'web' ? (
+                <WebDateInput
+                  value={editForm.dateOfBirth}
+                  onChange={(value) => updateField('dateOfBirth', value)}
+                  style={styles.webDateInput}
+                />
+              ) : (
+                <>
+                  <TouchableOpacity style={styles.dateInput} onPress={() => setShowDobPicker(true)}>
+                    <Text style={editForm.dateOfBirth ? styles.dateValue : styles.datePlaceholder}>
+                      {editForm.dateOfBirth || 'Select Date of Birth'}
+                    </Text>
+                  </TouchableOpacity>
+                  {showDobPicker && (
+                    <DateTimePicker
+                      value={parseDate(editForm.dateOfBirth)}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      maximumDate={new Date()}
+                      onChange={(_event, selectedDate) => {
+                        setShowDobPicker(false);
+                        if (selectedDate) {
+                          updateField('dateOfBirth', formatDate(selectedDate));
+                        }
+                      }}
+                    />
+                  )}
+                </>
+              )}
 
               <TouchableOpacity style={styles.editBtn} onPress={submitUpdate} disabled={saving}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.editBtnText}>Update Customer</Text>}
@@ -252,7 +339,31 @@ const styles = StyleSheet.create({
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', padding: 14 },
   modalCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14, maxHeight: '92%' },
   modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 10, color: '#1f2937' },
-  readOnlyText: { color: '#475569', marginBottom: 8, fontWeight: '600' }
+  readOnlyText: { color: '#475569', marginBottom: 8, fontWeight: '600' },
+  fieldLabel: { color: '#374151', fontSize: 13, fontWeight: '600', marginBottom: 4, marginTop: 2 },
+  dateInput: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 8
+  },
+  datePlaceholder: { color: '#9ca3af', fontSize: 15 },
+  dateValue: { color: '#111827', fontSize: 15 },
+  webDateInput: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 8,
+    fontSize: 15,
+    boxSizing: 'border-box'
+  }
 });
 
 export default CustomerManagement;

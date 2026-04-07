@@ -240,7 +240,7 @@ exports.getCustomers = async (req, res) => {
 exports.updateCustomer = async (req, res) => {
   try {
     const { id } = req.params;
-    const { fullName, username, email, phone, address, dateOfBirth } = req.body;
+    const { fullName, username, nic, email, phone, address, dateOfBirth } = req.body;
 
     const customer = await User.findById(id);
     if (!customer || customer.role !== 'customer') {
@@ -249,6 +249,10 @@ exports.updateCustomer = async (req, res) => {
 
     if (username !== undefined && !String(username).trim()) {
       return res.status(400).json({ message: 'Username is required' });
+    }
+
+    if (nic && !validateNIC(nic)) {
+      return res.status(400).json({ message: 'Invalid NIC format' });
     }
 
     if (email && !validateEmail(email)) {
@@ -263,23 +267,25 @@ exports.updateCustomer = async (req, res) => {
       return res.status(400).json({ message: 'Customer age must be greater than 16' });
     }
 
-    if (username || email || phone) {
+    if (username || nic || email || phone) {
       const duplicate = await User.findOne({
         _id: { $ne: id },
         $or: [
           ...(username ? [{ username: String(username).toLowerCase().trim() }] : []),
+          ...(nic ? [{ nic }] : []),
           ...(email ? [{ email: email.toLowerCase().trim() }] : []),
           ...(phone ? [{ phone: phone.trim() }] : [])
         ]
       });
 
       if (duplicate) {
-        return res.status(409).json({ message: 'Username, email, or phone already in use' });
+        return res.status(409).json({ message: 'Username, NIC, email, or phone already in use' });
       }
     }
 
     if (fullName !== undefined) customer.fullName = fullName.trim();
     if (username !== undefined) customer.username = String(username).toLowerCase().trim();
+    if (nic !== undefined) customer.nic = nic;
     if (email !== undefined) customer.email = email.toLowerCase().trim();
     if (phone !== undefined) customer.phone = phone.trim();
     if (address !== undefined) customer.address = address;
