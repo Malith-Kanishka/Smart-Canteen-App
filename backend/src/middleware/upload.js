@@ -106,9 +106,33 @@ const complaintUpload = multer({
   }
 });
 
+// Menu Item Upload
+const menuItemStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, './uploads/menu-items');
+  },
+  filename: (req, file, cb) => {
+    cb(null, `menu-${Date.now()}${path.extname(file.originalname)}`);
+  }
+});
+
+const menuItemUpload = multer({
+  storage: menuItemStorage,
+  limits: { fileSize: 5242880 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) return cb(null, true);
+    cb(new Error('Only image files are allowed'));
+  }
+});
+
 module.exports = {
   profileUpload,
   foodUpload,
+  menuItemUpload,
   complaintUpload,
   ensureUploadDirs
 };

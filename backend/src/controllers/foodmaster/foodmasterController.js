@@ -3,6 +3,7 @@ const User = require('../../models/User');
 const fs = require('fs');
 const path = require('path');
 const { createProfileHandlers } = require('../../utils/profileHandlers');
+const { deleteStoredProfilePhoto } = require('../../utils/profileHandlers');
 
 const profileHandlers = createProfileHandlers({ minAge: 16 });
 
@@ -70,7 +71,16 @@ exports.createMenuItem = async (req, res) => {
     }
 
     const itemId = await generateItemId();
-    const image = req.file ? `/uploads/food-items/${req.file.filename}` : null;
+    let image = null;
+
+    if (req.file) {
+      const extension = (path.extname(req.file.originalname) || path.extname(req.file.filename) || '.jpg').toLowerCase();
+      const imageFileName = `${itemId}${extension}`;
+      const targetPath = path.join(process.cwd(), 'uploads', 'menu-items', imageFileName);
+
+      fs.renameSync(req.file.path, targetPath);
+      image = `/uploads/menu-items/${imageFileName}`;
+    }
 
     const newItem = new MenuItem({
       itemId,
@@ -87,6 +97,9 @@ exports.createMenuItem = async (req, res) => {
       item: newItem
     });
   } catch (error) {
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
     res.status(500).json({ message: error.message });
   }
 };
@@ -129,12 +142,9 @@ exports.updateMenuItem = async (req, res) => {
     if (req.file) {
       // Delete old image if exists
       if (item.image) {
-        const oldImagePath = path.join(__dirname, '../../..', item.image);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
+        deleteStoredProfilePhoto(item.image);
       }
-      item.image = `/uploads/food-items/${req.file.filename}`;
+      item.image = `/uploads/menu-items/${req.file.filename}`;
     }
 
     await item.save();
@@ -143,6 +153,9 @@ exports.updateMenuItem = async (req, res) => {
       item
     });
   } catch (error) {
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
     res.status(500).json({ message: error.message });
   }
 };
@@ -158,10 +171,7 @@ exports.deleteMenuItem = async (req, res) => {
 
     // Delete image if exists
     if (item.image) {
-      const imagePath = path.join(__dirname, '../../..', item.image);
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
-      }
+      deleteStoredProfilePhoto(item.image);
     }
 
     await item.deleteOne();

@@ -15,7 +15,7 @@ exports.deleteProfilePhoto = profileHandlers.deleteProfilePhoto;
 exports.browseMenu = async (req, res) => {
   try {
     const { search, category } = req.query;
-    let query = { isActive: true };
+    let query = {};
 
     if (search) {
       query.name = { $regex: search, $options: 'i' };

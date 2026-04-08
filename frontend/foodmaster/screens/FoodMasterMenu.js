@@ -5,14 +5,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  ScrollView,
   ActivityIndicator,
   Alert,
   Image,
   RefreshControl,
   Modal,
   FlatList,
-  ImageBackground
+  Platform
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../shared/api/axiosConfig';
@@ -66,6 +65,32 @@ const FoodMasterMenu = () => {
     setEditForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const appendImageToFormData = async (formData, asset) => {
+    if (!asset) {
+      return;
+    }
+
+    const extension = (asset.fileName || asset.uri || '').match(/\.[a-zA-Z0-9]+$/)?.[0] || '.jpg';
+    const fileName = `menu-${Date.now()}${extension}`;
+
+    if (Platform.OS === 'web') {
+      if (asset.file) {
+        formData.append('image', asset.file, fileName);
+      } else {
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        formData.append('image', blob, fileName);
+      }
+      return;
+    }
+
+    formData.append('image', {
+      uri: asset.uri,
+      name: fileName,
+      type: asset.mimeType || 'image/jpeg'
+    });
+  };
+
   const pickImage = async (setImage) => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -103,16 +128,14 @@ const FoodMasterMenu = () => {
       formData.append('price', addForm.price);
       formData.append('description', addForm.description);
 
-      if (uploadedImage) {
-        formData.append('image', {
-          uri: uploadedImage.uri,
-          name: `menu-${Date.now()}.jpg`,
-          type: 'image/jpeg'
-        });
-      }
+      await appendImageToFormData(formData, uploadedImage);
+
+      const uploadHeaders = Platform.OS === 'web'
+        ? {}
+        : { 'Content-Type': 'multipart/form-data' };
 
       await api.post('/foodmaster/menu', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: uploadHeaders
       });
 
       setAddOpen(false);
@@ -155,16 +178,14 @@ const FoodMasterMenu = () => {
       formData.append('price', editForm.price);
       formData.append('description', editForm.description);
 
-      if (editUploadedImage) {
-        formData.append('image', {
-          uri: editUploadedImage.uri,
-          name: `menu-${Date.now()}.jpg`,
-          type: 'image/jpeg'
-        });
-      }
+      await appendImageToFormData(formData, editUploadedImage);
+
+      const uploadHeaders = Platform.OS === 'web'
+        ? {}
+        : { 'Content-Type': 'multipart/form-data' };
 
       await api.put(`/foodmaster/menu/${editingItem._id}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: uploadHeaders
       });
 
       setEditOpen(false);
@@ -179,101 +200,125 @@ const FoodMasterMenu = () => {
     }
   };
 
-  const deleteItem = (item) => {
+  const performDeleteItem = async (itemId) => {
+    setSaving(true);
+    try {
+      await api.delete(`/foodmaster/menu/${itemId}`);
+      await fetchMenu();
+      Alert.alert('Success', 'Item deleted successfully');
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || err.message || 'Failed to delete item');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteItem = async (item) => {
+    if (Platform.OS === 'web') {
+      const confirmed = typeof window !== 'undefined' ? window.confirm(`Delete "${item.name}"?`) : true;
+      if (confirmed) {
+        await performDeleteItem(item._id);
+      }
+      return;
+    }
+
     Alert.alert('Delete Item', `Delete "${item.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.delete(`/foodmaster/menu/${item._id}`);
-            await fetchMenu();
-            Alert.alert('Success', 'Item deleted successfully');
-          } catch (err) {
-            Alert.alert('Error', err.response?.data?.message || 'Failed to delete item');
-          }
+        onPress: () => {
+          void performDeleteItem(item._id);
         }
       }
     ]);
   };
 
-  const renderMenuItem = ({ item }) => (
-    <View style={styles.itemCard}>
-      {item.image && (
-        <Image
-          source={{ uri: `${api.defaults.baseURL.replace('/api', '')}${item.image}` }}
-          style={styles.itemImage}
-        />
-      )}
-      {!item.image && (
-        <View style={[styles.itemImage, { backgroundColor: '#e5e7eb', justifyContent: 'center', alignItems: 'center' }]}>
-          <Text style={{ color: '#999' }}>No Image</Text>
-        </View>
-      )}
-      <View style={styles.itemContent}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        {item.description && <Text style={styles.itemDesc}>{item.description.substring(0, 50)}...</Text>}
-        <Text style={styles.itemPrice}>PKR {item.price.toFixed(2)}</Text>
-        <View style={styles.itemActions}>
-          <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(item)}>
-            <Text style={styles.editBtnText}>Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteItem(item)}>
-            <Text style={styles.deleteBtnText}>Delete</Text>
-          </TouchableOpacity>
+  const renderMenuItem = ({ item }) => {
+    const imageUri = item.image ? `${api.defaults.baseURL.replace('/api', '')}${item.image}` : null;
+    const descriptionText = item.description
+      ? `${item.description.substring(0, 50)}${item.description.length > 50 ? '...' : ''}`
+      : '';
+
+    return (
+      <View style={styles.itemCard}>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.itemImage} />
+        ) : (
+          <View style={styles.placeholderImage}>
+            <Text style={styles.placeholderImageText}>No Image</Text>
+          </View>
+        )}
+        <View style={styles.itemContent}>
+          <Text style={styles.itemName}>{item.name}</Text>
+          {descriptionText ? <Text style={styles.itemDesc}>{descriptionText}</Text> : null}
+          <Text style={styles.itemPrice}>Rs. {Number(item.price).toFixed(2)}</Text>
+          <View style={styles.itemActions}>
+            <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(item)} disabled={saving}>
+              <Text style={styles.editBtnText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.deleteBtn, saving ? styles.disabledButton : null]} onPress={() => void deleteItem(item)} disabled={saving}>
+              <Text style={styles.deleteBtnText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   if (loading && !menu.length) {
     return <ActivityIndicator size="large" color="#1abc9c" style={{ marginTop: 30 }} />;
   }
 
+  const renderHeader = () => (
+    <View>
+      <View style={styles.header}>
+        <Text style={styles.title}>Menu Catalog</Text>
+        <TouchableOpacity style={styles.addButton} onPress={() => setAddOpen(true)}>
+          <Text style={styles.addButtonText}>+ Add Item</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Search menu items..."
+        value={search}
+        onChangeText={setSearch}
+        placeholderTextColor="#999"
+      />
+
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+    </View>
+  );
+
+  const renderEmpty = () => (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyText}>No menu items found</Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <ScrollView
+      <FlatList
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>Menu Catalog</Text>
-          <TouchableOpacity style={styles.addButton} onPress={() => setAddOpen(true)}>
-            <Text style={styles.addButtonText}>+ Add Item</Text>
-          </TouchableOpacity>
-        </View>
-
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search menu items..."
-          value={search}
-          onChangeText={setSearch}
-          placeholderTextColor="#999"
-        />
-
-        {error && <Text style={styles.errorText}>{error}</Text>}
-
-        {menu.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No menu items found</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={menu}
-            renderItem={renderMenuItem}
-            keyExtractor={(item) => item._id}
-            scrollEnabled={false}
-          />
-        )}
-      </ScrollView>
+        data={menu}
+        renderItem={renderMenuItem}
+        keyExtractor={(item) => item._id}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmpty}
+        refreshControl={
+          Platform.OS === 'web'
+            ? undefined
+            : <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      />
 
       {/* Add Item Modal */}
       <Modal visible={addOpen} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Add Menu Item</Text>
-            <ScrollView>
+            <View>
               <TextInput
                 style={styles.input}
                 placeholder="Item Name"
@@ -282,7 +327,7 @@ const FoodMasterMenu = () => {
               />
               <TextInput
                 style={styles.input}
-                placeholder="Price (PKR)"
+                placeholder="Price (Rs.)"
                 value={addForm.price}
                 onChangeText={(v) => updateAddField('price', v)}
                 keyboardType="decimal-pad"
@@ -314,7 +359,7 @@ const FoodMasterMenu = () => {
               <TouchableOpacity style={styles.secondaryButton} onPress={() => setAddOpen(false)}>
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </TouchableOpacity>
-            </ScrollView>
+            </View>
           </View>
         </View>
       </Modal>
@@ -324,7 +369,7 @@ const FoodMasterMenu = () => {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Menu Item</Text>
-            <ScrollView>
+            <View>
               <TextInput
                 style={styles.input}
                 placeholder="Item Name"
@@ -333,7 +378,7 @@ const FoodMasterMenu = () => {
               />
               <TextInput
                 style={styles.input}
-                placeholder="Price (PKR)"
+                placeholder="Price (Rs.)"
                 value={editForm.price}
                 onChangeText={(v) => updateEditField('price', v)}
                 keyboardType="decimal-pad"
@@ -367,7 +412,7 @@ const FoodMasterMenu = () => {
               <TouchableOpacity style={styles.secondaryButton} onPress={() => setEditOpen(false)}>
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </TouchableOpacity>
-            </ScrollView>
+            </View>
           </View>
         </View>
       </Modal>
@@ -401,6 +446,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row'
   },
   itemImage: { width: 100, height: 100, backgroundColor: '#e5e7eb' },
+  placeholderImage: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#e5e7eb',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  placeholderImageText: { color: '#999' },
   itemContent: { flex: 1, padding: 10 },
   itemName: { fontSize: 15, fontWeight: '700', color: '#1f2937' },
   itemDesc: { fontSize: 12, color: '#666', marginTop: 3 },
@@ -410,6 +463,7 @@ const styles = StyleSheet.create({
   editBtnText: { color: '#fff', fontWeight: '600', fontSize: 12 },
   deleteBtn: { flex: 1, backgroundColor: '#f59e0b', borderRadius: 6, paddingVertical: 6, alignItems: 'center' },
   deleteBtnText: { color: '#fff', fontWeight: '600', fontSize: 12 },
+  disabledButton: { opacity: 0.6 },
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
   emptyText: { fontSize: 16, color: '#999' },
   errorText: { color: '#dc2626', marginBottom: 8 },

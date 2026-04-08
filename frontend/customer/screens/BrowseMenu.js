@@ -52,13 +52,13 @@ const BrowseMenu = ({ navigation }) => {
     >
       {item.image && (
         <Image
-          source={{ uri: item.image }}
+          source={{ uri: `${api.defaults.baseURL.replace('/api', '')}${item.image}` }}
           style={styles.itemImage}
         />
       )}
       <View style={styles.itemInfo}>
         <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.itemPrice}>Rs. {item.price}</Text>
+        <Text style={styles.itemPrice}>Rs. {Number(item.price).toFixed(2)}</Text>
         <Text style={styles.itemDesc} numberOfLines={2}>{item.description}</Text>
         <TouchableOpacity
           style={styles.addBtn}

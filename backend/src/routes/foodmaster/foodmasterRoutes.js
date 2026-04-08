@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { auth, roleAccess } = require('../../middleware/auth');
-const { foodUpload, profileUpload } = require('../../middleware/upload');
+const { menuItemUpload, profileUpload } = require('../../middleware/upload');
 const foodmasterController = require('../../controllers/foodmaster/foodmasterController');
 
 // Menu Catalog
 router.get('/menu', auth, roleAccess('foodmaster'), foodmasterController.getMenu);
 router.get('/menu/:id', auth, roleAccess('foodmaster'), foodmasterController.getMenuItemById);
-router.post('/menu', auth, roleAccess('foodmaster'), foodUpload.single('image'), foodmasterController.createMenuItem);
-router.put('/menu/:id', auth, roleAccess('foodmaster'), foodUpload.single('image'), foodmasterController.updateMenuItem);
+router.post('/menu', auth, roleAccess('foodmaster'), menuItemUpload.single('image'), foodmasterController.createMenuItem);
+router.put('/menu/:id', auth, roleAccess('foodmaster'), menuItemUpload.single('image'), foodmasterController.updateMenuItem);
 router.delete('/menu/:id', auth, roleAccess('foodmaster'), foodmasterController.deleteMenuItem);
 
 // Profile Management
