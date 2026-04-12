@@ -16,6 +16,7 @@ import api from '../../shared/api/axiosConfig';
 const BrowseMenu = ({ navigation }) => {
   const [menuItems, setMenuItems] = useState([]);
   const [selectedCounts, setSelectedCounts] = useState({});
+  const [activeSeasonalPromo, setActiveSeasonalPromo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -24,10 +25,14 @@ const BrowseMenu = ({ navigation }) => {
   const fetchMenu = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/customer/menu', {
-        params: { search: searchText || undefined },
-      });
-      setMenuItems(data);
+      const [menuRes, promoRes] = await Promise.all([
+        api.get('/customer/menu', {
+          params: { search: searchText || undefined },
+        }),
+        api.get('/customer/promotions/active'),
+      ]);
+      setMenuItems(menuRes.data);
+      setActiveSeasonalPromo(promoRes.data?.activeSeasonalPromo || null);
       setError('');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load menu');
@@ -68,7 +73,15 @@ const BrowseMenu = ({ navigation }) => {
       )}
       <View style={styles.itemInfo}>
         <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.itemPrice}>Rs. {Number(item.price).toFixed(2)}</Text>
+        <View style={styles.priceRow}>
+          {item.dailyDiscount ? <Text style={styles.oldPrice}>Rs. {Number(item.price).toFixed(2)}</Text> : null}
+          <Text style={styles.itemPrice}>Rs. {Number(item.effectivePrice ?? item.price).toFixed(2)}</Text>
+          {item.dailyDiscount ? (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountBadgeText}>{item.dailyDiscount.discountPercentage}% OFF</Text>
+            </View>
+          ) : null}
+        </View>
         <Text style={styles.itemDesc} numberOfLines={2}>{item.description}</Text>
         <View style={styles.stockRow}>
           <View style={[styles.qtyBadge, item.isOutOfStock && styles.outStockBadge]}>
@@ -111,6 +124,12 @@ const BrowseMenu = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      {activeSeasonalPromo ? (
+        <View style={styles.banner}>
+          <Text style={styles.bannerTitle}>{activeSeasonalPromo.title}</Text>
+          <Text style={styles.bannerText}>Seasonal promotion active: {activeSeasonalPromo.discountPercentage}% off after daily discounts</Text>
+        </View>
+      ) : null}
       <TextInput
         style={styles.searchInput}
         placeholder="Search items..."
@@ -190,10 +209,50 @@ const styles = StyleSheet.create({
     color: '#1abc9c',
     marginTop: 4,
   },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  oldPrice: {
+    fontSize: 12,
+    color: '#94a3b8',
+    textDecorationLine: 'line-through',
+  },
+  discountBadge: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  discountBadgeText: {
+    color: '#b91c1c',
+    fontSize: 10,
+    fontWeight: '700',
+  },
   itemDesc: {
     fontSize: 12,
     color: '#7f8c8d',
     marginTop: 4,
+  },
+  banner: {
+    backgroundColor: '#0f766e',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+  },
+  bannerTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  bannerText: {
+    color: '#ccfbf1',
+    fontSize: 12,
+    lineHeight: 18,
   },
   stockRow: {
     marginTop: 8,

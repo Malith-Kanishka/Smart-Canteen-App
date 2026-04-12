@@ -1,9 +1,19 @@
 const Order = require('../../models/Order');
 const Transaction = require('../../models/Transaction');
+const MenuItem = require('../../models/MenuItem');
+const DailyDiscount = require('../../models/DailyDiscount');
+const Promo = require('../../models/Promo');
 const User = require('../../models/User');
 const fs = require('fs');
 const path = require('path');
 const { createProfileHandlers } = require('../../utils/profileHandlers');
+const {
+  roundCurrency,
+  calculateDailyDiscountAmount,
+  calculateDiscountedPrice,
+  isDailyDiscountExpired,
+  deriveSeasonalStatus
+} = require('../../utils/promotionEngine');
 
 const profileHandlers = createProfileHandlers({ minAge: 16 });
 
@@ -46,33 +56,97 @@ exports.getOrderById = async (req, res) => {
 // Create new order
 exports.createOrder = async (req, res) => {
   try {
-    const { items, seasonalPromoDiscount } = req.body;
+    const { items } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'Order must have at least one item' });
     }
 
-    let subtotal = 0;
-    let totalDiscount = 0;
+    const itemIds = items.map((item) => item.menuItemId).filter(Boolean);
+    const menuItems = await MenuItem.find({ _id: { $in: itemIds }, isActive: true }).select('_id name price');
+    const menuMap = new Map(menuItems.map((item) => [String(item._id), item]));
 
-    items.forEach((item) => {
-      const lineTotal = item.quantity * item.unitPrice;
-      const discount = item.dailyDiscount || 0;
-      subtotal += lineTotal;
-      totalDiscount += discount * item.quantity;
+    const dailyDiscounts = await DailyDiscount.find({
+      menuItemId: { $in: itemIds },
+      status: { $in: ['active', 'paused', 'expired'] }
     });
 
-    const promoDiscount = seasonalPromoDiscount || 0;
-    const totalDiscountAmount = totalDiscount + promoDiscount;
-    const payableAmount = subtotal - totalDiscountAmount;
+    const activeDailyDiscountMap = new Map();
+    for (const discount of dailyDiscounts) {
+      if (discount.status === 'active' && !isDailyDiscountExpired(discount)) {
+        activeDailyDiscountMap.set(String(discount.menuItemId), discount);
+      }
+    }
+
+    const promos = await Promo.find({});
+    const activeSeasonalPromo = promos
+      .map((promo) => ({ promo, derivedStatus: deriveSeasonalStatus(promo) }))
+      .find(({ derivedStatus }) => derivedStatus === 'active')?.promo || null;
+
+    let subtotal = 0;
+    let dailyDiscountTotal = 0;
+
+    const normalizedItems = items.map((item) => {
+      const menuItem = menuMap.get(String(item.menuItemId));
+      if (!menuItem) {
+        throw new Error(`Menu item not found for ${item.menuItemId}`);
+      }
+
+      const quantity = Number(item.quantity);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        throw new Error(`Invalid quantity for ${menuItem.name}`);
+      }
+
+      const unitPrice = roundCurrency(menuItem.price);
+      const lineSubtotal = roundCurrency(unitPrice * quantity);
+      const dailyDiscount = activeDailyDiscountMap.get(String(menuItem._id));
+      const dailyDiscountPercentage = dailyDiscount?.discountPercentage || 0;
+      const discountedUnitPrice = dailyDiscount
+        ? calculateDiscountedPrice(unitPrice, dailyDiscountPercentage)
+        : unitPrice;
+      const dailyDiscountAmount = dailyDiscount
+        ? calculateDailyDiscountAmount(unitPrice, dailyDiscountPercentage, quantity)
+        : 0;
+      const lineTotal = roundCurrency(lineSubtotal - dailyDiscountAmount);
+
+      subtotal += lineSubtotal;
+      dailyDiscountTotal += dailyDiscountAmount;
+
+      return {
+        menuItemId: menuItem._id,
+        itemName: menuItem.name,
+        quantity,
+        unitPrice,
+        discountedUnitPrice,
+        dailyDiscountPercentage,
+        dailyDiscountAmount,
+        lineSubtotal,
+        lineTotal
+      };
+    });
+
+    subtotal = roundCurrency(subtotal);
+    dailyDiscountTotal = roundCurrency(dailyDiscountTotal);
+    const subtotalAfterDaily = roundCurrency(subtotal - dailyDiscountTotal);
+    const seasonalPromoDiscountPercentage = activeSeasonalPromo?.discountPercentage || 0;
+    const seasonalPromoDiscount = activeSeasonalPromo
+      ? roundCurrency((subtotalAfterDaily * seasonalPromoDiscountPercentage) / 100)
+      : 0;
+    const totalDiscountAmount = roundCurrency(dailyDiscountTotal + seasonalPromoDiscount);
+    const payableAmount = roundCurrency(subtotal - totalDiscountAmount);
 
     const orderId = await generateOrderId();
 
     const newOrder = new Order({
       orderId,
-      items,
+      items: normalizedItems,
       subtotal,
-      seasonalPromoDiscount: promoDiscount,
+      dailyDiscountTotal,
+      subtotalAfterDaily,
+      seasonalPromoId: activeSeasonalPromo?.promoId,
+      seasonalPromoTitle: activeSeasonalPromo?.title,
+      seasonalPromoDiscountPercentage,
+      seasonalPromoDiscount,
       totalDiscount: totalDiscountAmount,
       payableAmount,
       status: 'pending'

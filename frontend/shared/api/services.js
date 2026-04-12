@@ -17,6 +17,7 @@ export const authService = {
 export const customerService = {
   browseMenu: (search, category) =>
     api.get('/customer/menu', { params: { search, category } }),
+  getActivePromotions: () => api.get('/customer/promotions/active'),
   getMyOrders: () => api.get('/customer/orders'),
   getProfile: () => api.get('/customer/profile'),
   updateProfile: (data) => api.put('/customer/profile', data),
@@ -31,8 +32,8 @@ export const orderService = {
   getOrders: (status, search) =>
     api.get('/order', { params: { status, search } }),
   getOrderById: (id) => api.get(`/order/${id}`),
-  createOrder: (items, seasonalPromoDiscount) =>
-    api.post('/order', { items, seasonalPromoDiscount }),
+  createOrder: (items) =>
+    api.post('/order', { items }),
   updateOrderStatus: (id, status) =>
     api.put(`/order/${id}/status`, { status }),
 };
@@ -128,15 +129,17 @@ export const foodmasterService = {
  * Promotion Services
  */
 export const promotionService = {
-  getDailyDiscounts: (active) =>
-    api.get('/promotion/daily', { params: { active } }),
+  getMenuItems: () => api.get('/promotion/menu-items'),
+  getActiveSummary: () => api.get('/promotion/active-summary'),
+  getDailyDiscounts: (params) =>
+    api.get('/promotion/daily', { params }),
   getDailyDiscountById: (id) => api.get(`/promotion/daily/${id}`),
-  createDailyDiscount: (menuItemId, discountPercentage, maxQuantity) =>
-    api.post('/promotion/daily', { menuItemId, discountPercentage, maxQuantity }),
+  createDailyDiscount: (menuItemId, discountPercentage) =>
+    api.post('/promotion/daily', { menuItemId, discountPercentage }),
   updateDailyDiscount: (id, data) => api.put(`/promotion/daily/${id}`, data),
   deleteDailyDiscount: (id) => api.delete(`/promotion/daily/${id}`),
 
-  getPromos: (active) => api.get('/promotion/seasonal', { params: { active } }),
+  getPromos: (params) => api.get('/promotion/seasonal', { params }),
   getPromoById: (id) => api.get(`/promotion/seasonal/${id}`),
   createPromo: (data) => api.post('/promotion/seasonal', data),
   updatePromo: (id, data) => api.put(`/promotion/seasonal/${id}`, data),

@@ -74,9 +74,29 @@ const MyOrders = ({ navigation }) => {
       <Text style={styles.date}>
         {new Date(item.createdAt).toLocaleDateString()}
       </Text>
+      <View style={styles.summaryBlock}>
+        <View style={styles.amountRow}>
+          <Text style={styles.label}>Subtotal:</Text>
+          <Text style={styles.value}>Rs. {Number(item.subtotal || 0).toFixed(2)}</Text>
+        </View>
+        <View style={styles.amountRow}>
+          <Text style={styles.label}>Daily Savings:</Text>
+          <Text style={styles.discountValue}>- Rs. {Number(item.dailyDiscountTotal || 0).toFixed(2)}</Text>
+        </View>
+        {Number(item.seasonalPromoDiscount || 0) > 0 ? (
+          <View style={styles.amountRow}>
+            <Text style={styles.label}>Seasonal Savings:</Text>
+            <Text style={styles.discountValue}>- Rs. {Number(item.seasonalPromoDiscount || 0).toFixed(2)}</Text>
+          </View>
+        ) : null}
+        <View style={styles.amountRow}>
+          <Text style={styles.label}>Total Savings:</Text>
+          <Text style={styles.discountValue}>- Rs. {Number(item.totalDiscount || 0).toFixed(2)}</Text>
+        </View>
+      </View>
       <View style={styles.amountRow}>
-        <Text style={styles.label}>Amount:</Text>
-        <Text style={styles.amount}>Rs. {item.payableAmount}</Text>
+        <Text style={styles.label}>Payable:</Text>
+        <Text style={styles.amount}>Rs. {Number(item.payableAmount || 0).toFixed(2)}</Text>
       </View>
       <Text style={styles.itemCount}>{item.items.length} item(s)</Text>
     </TouchableOpacity>
@@ -164,9 +184,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  summaryBlock: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+  },
   label: {
     fontSize: 14,
     color: '#7f8c8d',
+  },
+  value: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  discountValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f766e',
   },
   amount: {
     fontSize: 16,

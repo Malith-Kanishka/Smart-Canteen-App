@@ -5,6 +5,8 @@ const { profileUpload } = require('../../middleware/upload');
 const promotionController = require('../../controllers/promotion/promotionController');
 
 // Seasonal Promotions
+router.get('/menu-items', auth, roleAccess('promotion'), promotionController.getPromotionMenuItems);
+router.get('/active-summary', auth, roleAccess('promotion'), promotionController.getActivePromotionSummary);
 router.get('/seasonal', auth, roleAccess('promotion'), promotionController.getSeasonalPromos);
 router.get('/seasonal/:id', auth, roleAccess('promotion'), promotionController.getSeasonalPromoById);
 router.post('/seasonal', auth, roleAccess('promotion'), promotionController.createSeasonalPromo);

@@ -6,6 +6,7 @@ const customerController = require('../../controllers/customer/customerControlle
 
 // Browse Menu
 router.get('/menu', auth, roleAccess('customer'), customerController.browseMenu);
+router.get('/promotions/active', auth, roleAccess('customer'), customerController.getActivePromotions);
 
 // My Orders
 router.get('/orders', auth, roleAccess('customer'), customerController.getMyOrders);
