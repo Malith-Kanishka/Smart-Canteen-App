@@ -8,6 +8,7 @@ const inventoryController = require('../../controllers/inventory/inventoryContro
 router.get('/dashboard', auth, roleAccess('inventory'), inventoryController.getDashboard);
 
 // Stock Items
+router.get('/menu-items', auth, roleAccess('inventory'), inventoryController.getMenuItems);
 router.get('/stock', auth, roleAccess('inventory'), inventoryController.getStock);
 router.get('/stock/:id', auth, roleAccess('inventory'), inventoryController.getStockItem);
 router.post('/stock', auth, roleAccess('inventory'), inventoryController.createStockItem);

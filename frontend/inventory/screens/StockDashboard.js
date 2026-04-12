@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Platform,
   RefreshControl,
   Modal,
   FlatList
@@ -30,6 +31,9 @@ const StockDashboard = () => {
   const [addForm, setAddForm] = useState({ itemName: '', currentQty: '', minQty: '', maxQty: '', unitPrice: '' });
   const [editForm, setEditForm] = useState({ itemName: '', currentQty: '', minQty: '', maxQty: '', unitPrice: '' });
   const [saving, setSaving] = useState(false);
+  const [menuItems, setMenuItems] = useState([]);
+  const [menuItemsLoading, setMenuItemsLoading] = useState(false);
+  const [menuDropdownOpen, setMenuDropdownOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -53,6 +57,22 @@ const StockDashboard = () => {
     fetchData();
   }, [fetchData]);
 
+  React.useEffect(() => {
+    const fetchMenuItems = async () => {
+      setMenuItemsLoading(true);
+      try {
+        const res = await api.get('/inventory/menu-items');
+        setMenuItems(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        setMenuItems([]);
+      } finally {
+        setMenuItemsLoading(false);
+      }
+    };
+
+    fetchMenuItems();
+  }, []);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchData();
@@ -69,11 +89,11 @@ const StockDashboard = () => {
 
   const submitAddItem = async () => {
     if (!addForm.itemName.trim()) {
-      Alert.alert('Validation', 'Item name is required');
+      Alert.alert('Validation', 'Please select a menu item');
       return;
     }
-    if (!addForm.currentQty || isNaN(addForm.currentQty)) {
-      Alert.alert('Validation', 'Valid current quantity is required');
+    if (!addForm.currentQty || isNaN(addForm.currentQty) || Number(addForm.currentQty) <= 0) {
+      Alert.alert('Validation', 'Current quantity must be greater than 0');
       return;
     }
     if (!addForm.minQty || isNaN(addForm.minQty)) {
@@ -91,9 +111,16 @@ const StockDashboard = () => {
 
     setSaving(true);
     try {
-      await api.post('/inventory/stock', addForm);
+      await api.post('/inventory/stock', {
+        menuItemId: addForm.itemName,
+        currentQty: addForm.currentQty,
+        minQty: addForm.minQty,
+        maxQty: addForm.maxQty,
+        unitPrice: addForm.unitPrice
+      });
       setAddOpen(false);
       setAddForm({ itemName: '', currentQty: '', minQty: '', maxQty: '', unitPrice: '' });
+      setMenuDropdownOpen(false);
       await fetchData();
       Alert.alert('Success', 'Stock item added successfully');
     } catch (err) {
@@ -131,20 +158,32 @@ const StockDashboard = () => {
   };
 
   const deleteItem = (item) => {
+    const performDelete = async () => {
+      try {
+        await api.delete(`/inventory/stock/${item._id}`);
+        await fetchData();
+        Alert.alert('Success', 'Item deleted successfully');
+      } catch (err) {
+        Alert.alert('Error', err.response?.data?.message || 'Failed to delete item');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = typeof globalThis.confirm === 'function'
+        ? globalThis.confirm(`Delete "${item.itemName}"?`)
+        : true;
+      if (confirmed) {
+        performDelete();
+      }
+      return;
+    }
+
     Alert.alert('Delete Item', `Delete "${item.itemName}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.delete(`/inventory/stock/${item._id}`);
-            await fetchData();
-            Alert.alert('Success', 'Item deleted successfully');
-          } catch (err) {
-            Alert.alert('Error', err.response?.data?.message || 'Failed to delete item');
-          }
-        }
+        onPress: performDelete
       }
     ]);
   };
@@ -163,7 +202,10 @@ const StockDashboard = () => {
   const renderStockItem = ({ item }) => (
     <View style={styles.stockCard}>
       <View style={styles.stockHeader}>
-        <Text style={styles.stockName}>{item.itemName}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.stockName}>{item.itemName}</Text>
+          <Text style={styles.stockCode}>{item.stockId || '-'}</Text>
+        </View>
         <View style={[styles.statusBadge, { backgroundColor: getStatusStyle(item.status).backgroundColor }]}>
           <Text style={[styles.statusText, { color: getStatusStyle(item.status).textColor }]}>
             {item.status.replace('_', ' ').toUpperCase()}
@@ -280,12 +322,40 @@ const StockDashboard = () => {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Add Stock Item</Text>
             <ScrollView>
-              <TextInput
-                style={styles.input}
-                placeholder="Item Name"
-                value={addForm.itemName}
-                onChangeText={(v) => updateAddField('itemName', v)}
-              />
+              <TouchableOpacity
+                style={styles.dropdownTrigger}
+                onPress={() => setMenuDropdownOpen((prev) => !prev)}
+              >
+                <Text style={[styles.dropdownTriggerText, !addForm.itemName && styles.dropdownPlaceholderText]}>
+                  {addForm.itemName
+                    ? menuItems.find((menu) => menu._id === addForm.itemName)?.name || 'Selected menu item'
+                    : 'Select menu item'}
+                </Text>
+                <Text style={styles.dropdownIcon}>{menuDropdownOpen ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+
+              {menuDropdownOpen && (
+                <View style={styles.dropdownList}>
+                  {menuItemsLoading ? (
+                    <ActivityIndicator size="small" color="#0ea5a2" style={{ paddingVertical: 10 }} />
+                  ) : (
+                    <ScrollView style={styles.dropdownListScroll} nestedScrollEnabled>
+                      {menuItems.map((menu) => (
+                        <TouchableOpacity
+                          key={menu._id}
+                          style={styles.dropdownItem}
+                          onPress={() => {
+                            updateAddField('itemName', menu._id);
+                            setMenuDropdownOpen(false);
+                          }}
+                        >
+                          <Text style={styles.dropdownItemText}>{menu.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )}
+                </View>
+              )}
               <TextInput
                 style={styles.input}
                 placeholder="Current Qty"
@@ -442,6 +512,7 @@ const styles = StyleSheet.create({
   },
   stockHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   stockName: { fontSize: 15, fontWeight: '700', color: '#1f2937', flex: 1 },
+  stockCode: { fontSize: 11, color: '#64748b', marginTop: 2, fontWeight: '600' },
   statusBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
   statusText: { fontSize: 11, fontWeight: '700' },
   stockMeta: { marginBottom: 10 },
@@ -467,6 +538,31 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     fontSize: 14
   },
+  dropdownTrigger: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  dropdownTriggerText: { fontSize: 14, color: '#1f2937' },
+  dropdownPlaceholderText: { color: '#94a3b8' },
+  dropdownIcon: { color: '#64748b', fontSize: 12, fontWeight: '700' },
+  dropdownList: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    marginBottom: 10,
+    backgroundColor: '#fff'
+  },
+  dropdownListScroll: { maxHeight: 180 },
+  dropdownItem: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  dropdownItemText: { fontSize: 14, color: '#1f2937' },
   primaryButton: { backgroundColor: '#0ea5a2', borderRadius: 8, alignItems: 'center', paddingVertical: 12, marginBottom: 8 },
   primaryButtonText: { color: '#fff', fontWeight: '700' },
   secondaryButton: { borderWidth: 1, borderColor: '#94a3b8', borderRadius: 8, alignItems: 'center', paddingVertical: 11 },

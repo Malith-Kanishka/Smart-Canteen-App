@@ -15,6 +15,7 @@ import api from '../../shared/api/axiosConfig';
 
 const BrowseMenu = ({ navigation }) => {
   const [menuItems, setMenuItems] = useState([]);
+  const [selectedCounts, setSelectedCounts] = useState({});
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -45,6 +46,15 @@ const BrowseMenu = ({ navigation }) => {
     setRefreshing(false);
   };
 
+  const updateCount = (item, delta) => {
+    setSelectedCounts((prev) => {
+      const currentValue = prev[item._id] || 0;
+      const maxAllowed = Math.max(0, Number(item.quantity) || 0);
+      const nextValue = Math.min(maxAllowed, Math.max(0, currentValue + delta));
+      return { ...prev, [item._id]: nextValue };
+    });
+  };
+
   const renderMenuItem = ({ item }) => (
     <TouchableOpacity
       style={styles.menuCard}
@@ -60,12 +70,33 @@ const BrowseMenu = ({ navigation }) => {
         <Text style={styles.itemName}>{item.name}</Text>
         <Text style={styles.itemPrice}>Rs. {Number(item.price).toFixed(2)}</Text>
         <Text style={styles.itemDesc} numberOfLines={2}>{item.description}</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => Alert.alert('Info', 'Cart screen is not configured yet.')}
-        >
-          <Text style={styles.addBtnText}>Add to Cart</Text>
-        </TouchableOpacity>
+        <View style={styles.stockRow}>
+          <View style={[styles.qtyBadge, item.isOutOfStock && styles.outStockBadge]}>
+            <Text style={[styles.qtyBadgeText, item.isOutOfStock && styles.outStockBadgeText]}>
+              {item.isOutOfStock ? 'OUT OF STOCK' : `Qty: ${Math.max(0, Number(item.quantity) || 0)}`}
+            </Text>
+          </View>
+          <View style={styles.counterWrap}>
+            <TouchableOpacity
+              style={[styles.counterBtn, (selectedCounts[item._id] || 0) <= 0 && styles.counterBtnDisabled]}
+              onPress={() => updateCount(item, -1)}
+              disabled={(selectedCounts[item._id] || 0) <= 0}
+            >
+              <Text style={styles.counterBtnText}>-</Text>
+            </TouchableOpacity>
+            <Text style={styles.counterText}>{selectedCounts[item._id] || 0}</Text>
+            <TouchableOpacity
+              style={[
+                styles.counterBtn,
+                (item.isOutOfStock || (selectedCounts[item._id] || 0) >= Math.max(0, Number(item.quantity) || 0)) && styles.counterBtnDisabled
+              ]}
+              onPress={() => updateCount(item, 1)}
+              disabled={item.isOutOfStock || (selectedCounts[item._id] || 0) >= Math.max(0, Number(item.quantity) || 0)}
+            >
+              <Text style={styles.counterBtnText}>+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -164,17 +195,56 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
     marginTop: 4,
   },
-  addBtn: {
-    backgroundColor: '#1abc9c',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
+  stockRow: {
     marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  addBtnText: {
+  qtyBadge: {
+    backgroundColor: '#d1fae5',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  qtyBadgeText: {
+    color: '#065f46',
+    fontWeight: '700',
+    fontSize: 11,
+  },
+  outStockBadge: {
+    backgroundColor: '#fee2e2',
+  },
+  outStockBadgeText: {
+    color: '#991b1b',
+  },
+  counterWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  counterBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#1abc9c',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  counterBtnDisabled: {
+    backgroundColor: '#cbd5e1',
+  },
+  counterBtnText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 16,
+    lineHeight: 18,
+  },
+  counterText: {
+    minWidth: 18,
+    textAlign: 'center',
+    color: '#334155',
+    fontWeight: '700',
     fontSize: 12,
   },
   emptyContainer: {

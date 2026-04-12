@@ -1,11 +1,58 @@
 const StockItem = require('../../models/StockItem');
 const MenuItem = require('../../models/MenuItem');
+const Counter = require('../../models/Counter');
 const User = require('../../models/User');
 const fs = require('fs');
 const path = require('path');
 const { createProfileHandlers } = require('../../utils/profileHandlers');
 
 const profileHandlers = createProfileHandlers({ minAge: 16 });
+
+const resolveStockStatus = (currentQty, minQty, maxQty) => {
+  if (currentQty < minQty) return 'low_stock';
+  if (currentQty > maxQty) return 'over_stock';
+  return 'good';
+};
+
+const STOCK_SEQUENCE_KEY = 'stock-sequence';
+
+const formatStockId = (sequence) => `ST${String(sequence).padStart(3, '0')}`;
+
+const parseStockId = (value = '') => {
+  const match = /^ST(\d+)$/.exec(value);
+  return match ? Number(match[1]) : 0;
+};
+
+const getCurrentMaxStockSequence = async () => {
+  const stockItems = await StockItem.find({ stockId: /^ST\d+$/ }).select('stockId').lean();
+  return stockItems.reduce((max, item) => Math.max(max, parseStockId(item.stockId)), 0);
+};
+
+const ensureStockCounter = async () => {
+  const existingCounter = await Counter.findById(STOCK_SEQUENCE_KEY).lean();
+  if (existingCounter) {
+    return existingCounter;
+  }
+
+  const currentMaxSequence = await getCurrentMaxStockSequence();
+  return Counter.findByIdAndUpdate(
+    STOCK_SEQUENCE_KEY,
+    { $setOnInsert: { seq: currentMaxSequence } },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+};
+
+const generateNextStockId = async () => {
+  await ensureStockCounter();
+
+  const counter = await Counter.findByIdAndUpdate(
+    STOCK_SEQUENCE_KEY,
+    { $inc: { seq: 1 } },
+    { new: true }
+  );
+
+  return formatStockId(counter.seq);
+};
 
 // Get stock dashboard
 exports.getDashboard = async (req, res) => {
@@ -45,6 +92,7 @@ exports.getStock = async (req, res) => {
 
     if (search) {
       query.$or = [
+        { stockId: { $regex: search, $options: 'i' } },
         { itemName: { $regex: search, $options: 'i' } }
       ];
     }
@@ -54,6 +102,15 @@ exports.getStock = async (req, res) => {
     }
 
     const items = await StockItem.find(query).sort({ createdAt: -1 });
+
+    // Backfill IDs for legacy stock records that were created before stockId existed.
+    for (const item of items) {
+      if (!item.stockId) {
+        item.stockId = await generateNextStockId();
+        await item.save();
+      }
+    }
+
     res.json(items);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -73,18 +130,41 @@ exports.getStockItem = async (req, res) => {
   }
 };
 
+// Get menu items for stock form dropdown
+exports.getMenuItems = async (req, res) => {
+  try {
+    const menuItems = await MenuItem.find({ isActive: true })
+      .select('_id name')
+      .sort({ name: 1 });
+
+    res.json(menuItems);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Create new stock item
 exports.createStockItem = async (req, res) => {
   try {
-    const { itemName, currentQty, minQty, maxQty, unitPrice } = req.body;
+    const { menuItemId, currentQty, minQty, maxQty, unitPrice } = req.body;
 
     // Validation
-    if (!itemName || itemName.trim().length === 0) {
-      return res.status(400).json({ message: 'Item name is required' });
+    if (!menuItemId) {
+      return res.status(400).json({ message: 'Menu item is required' });
     }
 
-    if (currentQty === undefined || isNaN(currentQty) || currentQty < 0) {
-      return res.status(400).json({ message: 'Valid current quantity is required' });
+    const menuItem = await MenuItem.findById(menuItemId).select('_id name');
+    if (!menuItem) {
+      return res.status(404).json({ message: 'Selected menu item not found' });
+    }
+
+    const alreadyExists = await StockItem.findOne({ itemId: menuItem._id });
+    if (alreadyExists) {
+      return res.status(409).json({ message: 'Stock record already exists for this menu item' });
+    }
+
+    if (currentQty === undefined || isNaN(currentQty) || Number(currentQty) <= 0) {
+      return res.status(400).json({ message: 'Current quantity must be greater than 0' });
     }
 
     if (minQty === undefined || isNaN(minQty) || minQty < 0) {
@@ -99,16 +179,18 @@ exports.createStockItem = async (req, res) => {
       return res.status(400).json({ message: 'Valid unit price is required' });
     }
 
-    // Determine status based on quantities
-    let status = 'good';
-    if (parseInt(currentQty) < parseInt(minQty)) status = 'low_stock';
-    if (parseInt(currentQty) > parseInt(maxQty)) status = 'over_stock';
+    const parsedCurrentQty = parseInt(currentQty, 10);
+    const parsedMinQty = parseInt(minQty, 10);
+    const parsedMaxQty = parseInt(maxQty, 10);
+    const status = resolveStockStatus(parsedCurrentQty, parsedMinQty, parsedMaxQty);
 
     const newItem = new StockItem({
-      itemName,
-      currentQty: parseInt(currentQty),
-      minQty: parseInt(minQty),
-      maxQty: parseInt(maxQty),
+      stockId: await generateNextStockId(),
+      itemId: menuItem._id,
+      itemName: menuItem.name,
+      currentQty: parsedCurrentQty,
+      minQty: parsedMinQty,
+      maxQty: parsedMaxQty,
       unitPrice: parseFloat(unitPrice),
       status
     });
@@ -140,10 +222,7 @@ exports.updateStockItem = async (req, res) => {
     if (unitPrice !== undefined) item.unitPrice = parseFloat(unitPrice);
 
     // Auto-update status
-    let status = 'good';
-    if (item.currentQty < item.minQty) status = 'low_stock';
-    if (item.currentQty > item.maxQty) status = 'over_stock';
-    item.status = status;
+    item.status = resolveStockStatus(item.currentQty, item.minQty, item.maxQty);
 
     await item.save();
     res.json({

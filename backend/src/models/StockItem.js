@@ -2,6 +2,12 @@ const mongoose = require('mongoose');
 
 const stockItemSchema = new mongoose.Schema(
   {
+    stockId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true
+    },
     itemId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'MenuItem'
