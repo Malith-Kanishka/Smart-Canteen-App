@@ -100,7 +100,16 @@ exports.createFeedback = async (req, res) => {
     }
 
     const feedbackId = await generateFeedbackId();
-    const imageUrl = req.file ? `/uploads/complaints/${req.file.filename}` : null;
+
+    let imageUrl = null;
+    if (req.file) {
+      const ext = path.extname(req.file.originalname).toLowerCase() || path.extname(req.file.filename).toLowerCase() || '.jpg';
+      const newFilename = `${feedbackId}${ext}`;
+      const oldPath = req.file.path;
+      const newPath = path.join(path.dirname(oldPath), newFilename);
+      fs.renameSync(oldPath, newPath);
+      imageUrl = `/uploads/complaints/${newFilename}`;
+    }
 
     const newFeedback = new Feedback({
       feedbackId,

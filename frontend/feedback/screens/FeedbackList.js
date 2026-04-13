@@ -35,6 +35,8 @@ const FeedbackList = () => {
   const [activeFeedback, setActiveFeedback] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [photoModalVisible, setPhotoModalVisible] = useState(false);
+  const [activePhotoUri, setActivePhotoUri] = useState(null);
 
   const fetchFeedback = useCallback(async () => {
     setLoading(true);
@@ -81,6 +83,17 @@ const FeedbackList = () => {
     setReplyModalVisible(false);
     setActiveFeedback(null);
     setReplyText('');
+  };
+
+  const openPhotoModal = (imageUrl) => {
+    const uri = buildUploadUri(imageUrl);
+    setActivePhotoUri(uri);
+    setPhotoModalVisible(true);
+  };
+
+  const closePhotoModal = () => {
+    setPhotoModalVisible(false);
+    setActivePhotoUri(null);
   };
 
   const submitReply = async () => {
@@ -156,9 +169,7 @@ const FeedbackList = () => {
       {renderDetailRow('Message', item.comment)}
       {item.rating && <Text style={styles.rating}>Rating: ★ {item.rating}/5</Text>}
 
-      {item.imageUrl ? (
-        <Image source={{ uri: buildUploadUri(item.imageUrl) }} style={styles.feedbackImage} />
-      ) : null}
+      {item.imageUrl ? <Text style={styles.photoNote}>Photo attached</Text> : <Text style={styles.photoNote}>No photo</Text>}
 
       {item.reply ? (
         <View style={styles.replyBox}>
@@ -172,6 +183,11 @@ const FeedbackList = () => {
       <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()}</Text>
 
       <View style={styles.actionRow}>
+        {item.imageUrl ? (
+          <TouchableOpacity style={[styles.actionButton, styles.photoViewButton]} onPress={() => openPhotoModal(item.imageUrl)}>
+            <Text style={styles.actionButtonText}>View Photo</Text>
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity style={styles.actionButton} onPress={() => openReplyModal(item)}>
           <Text style={styles.actionButtonText}>{item.reply ? 'Edit Reply' : 'Reply'}</Text>
         </TouchableOpacity>
@@ -243,6 +259,20 @@ const FeedbackList = () => {
                 disabled={actionLoading}
               >
                 <Text style={styles.modalButtonText}>{actionLoading ? 'Saving...' : 'Save Reply'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={photoModalVisible} animationType="fade" onRequestClose={closePhotoModal}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.photoModalCard}>
+            <Text style={styles.modalTitle}>Customer Photo</Text>
+            {activePhotoUri ? <Image source={{ uri: activePhotoUri }} style={styles.photoPreview} resizeMode="contain" /> : null}
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity style={[styles.modalButton, styles.modalCancel]} onPress={closePhotoModal}>
+                <Text style={styles.modalButtonText}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -353,13 +383,10 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     marginBottom: 6,
   },
-  feedbackImage: {
-    width: '100%',
-    height: 160,
-    borderRadius: 8,
-    marginTop: 8,
-    marginBottom: 8,
-    backgroundColor: '#ecf0f1',
+  photoNote: {
+    marginTop: 6,
+    color: '#64748b',
+    fontSize: 12,
   },
   replyBox: {
     marginTop: 6,
@@ -399,6 +426,9 @@ const styles = StyleSheet.create({
   deleteButton: {
     backgroundColor: '#ef4444',
   },
+  photoViewButton: {
+    backgroundColor: '#475569',
+  },
   actionButtonText: {
     color: '#fff',
     fontSize: 12,
@@ -429,6 +459,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 14,
+  },
+  photoModalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 14,
+    maxHeight: '80%',
+  },
+  photoPreview: {
+    width: '100%',
+    height: 320,
+    borderRadius: 8,
+    backgroundColor: '#e2e8f0',
   },
   modalTitle: {
     fontSize: 16,
