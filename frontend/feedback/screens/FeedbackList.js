@@ -7,15 +7,34 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
+  TextInput,
+  Alert,
+  Modal,
+  Image,
+  Platform,
 } from 'react-native';
 import api from '../../shared/api/axiosConfig';
+import { feedbackService } from '../../shared/api/services';
 
-const FeedbackList = ({ navigation }) => {
+const buildUploadUri = (uploadPath) => {
+  if (!uploadPath) {
+    return null;
+  }
+
+  const serverBaseUrl = api.defaults.baseURL.replace(/\/api\/?$/, '');
+  return `${serverBaseUrl}${uploadPath}`;
+};
+
+const FeedbackList = () => {
   const [feedback, setFeedback] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
+  const [replyModalVisible, setReplyModalVisible] = useState(false);
+  const [activeFeedback, setActiveFeedback] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
   const fetchFeedback = useCallback(async () => {
     setLoading(true);
@@ -33,7 +52,7 @@ const FeedbackList = ({ navigation }) => {
 
   useEffect(() => {
     fetchFeedback();
-  }, [filter]);
+  }, [filter, fetchFeedback]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -52,21 +71,115 @@ const FeedbackList = ({ navigation }) => {
     }
   };
 
+  const openReplyModal = (item) => {
+    setActiveFeedback(item);
+    setReplyText(item.reply || '');
+    setReplyModalVisible(true);
+  };
+
+  const closeReplyModal = () => {
+    setReplyModalVisible(false);
+    setActiveFeedback(null);
+    setReplyText('');
+  };
+
+  const submitReply = async () => {
+    if (!activeFeedback?._id) {
+      return;
+    }
+
+    if (!replyText.trim()) {
+      setError('Reply message is required');
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      await feedbackService.replyToFeedback(activeFeedback._id, replyText.trim(), 'resolved');
+      closeReplyModal();
+      await fetchFeedback();
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send reply');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const askDeleteFeedback = (item) => {
+    const performDelete = async () => {
+      setActionLoading(true);
+      try {
+        await feedbackService.deleteFeedback(item._id);
+        await fetchFeedback();
+        setError('');
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to delete feedback');
+      } finally {
+        setActionLoading(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = typeof window !== 'undefined' ? window.confirm('Delete this feedback? This cannot be undone.') : true;
+      if (confirmed) {
+        performDelete();
+      }
+      return;
+    }
+
+    Alert.alert('Delete Feedback', 'Delete this feedback? This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: performDelete },
+    ]);
+  };
+
+  const renderDetailRow = (label, value) => (
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}:</Text>
+      <Text style={styles.detailValue}>{value || '-'}</Text>
+    </View>
+  );
+
   const renderFeedbackCard = ({ item }) => (
-    <TouchableOpacity
-      style={styles.feedbackCard}
-      onPress={() => navigation.navigate('FeedbackDetail', { feedback: item })}
-    >
+    <View style={styles.feedbackCard}>
       <View style={styles.cardHeader}>
-        <Text style={styles.type}>{item.type.toUpperCase()}</Text>
+        <Text style={styles.type}>{(item.type || 'complaint').toUpperCase()}</Text>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
           <Text style={styles.statusText}>{item.status}</Text>
         </View>
       </View>
+
+      {renderDetailRow('Feedback ID', item.feedbackId)}
+      {renderDetailRow('User ID', item.userId?.userId || item.userId?.staffId || item.userId?.username)}
+      {renderDetailRow('Customer Name', item.userId?.fullName)}
+      {renderDetailRow('Message', item.comment)}
       {item.rating && <Text style={styles.rating}>Rating: ★ {item.rating}/5</Text>}
-      <Text style={styles.comment} numberOfLines={2}>{item.comment}</Text>
+
+      {item.imageUrl ? (
+        <Image source={{ uri: buildUploadUri(item.imageUrl) }} style={styles.feedbackImage} />
+      ) : null}
+
+      {item.reply ? (
+        <View style={styles.replyBox}>
+          <Text style={styles.replyTitle}>Reply</Text>
+          <Text style={styles.replyText}>{item.reply}</Text>
+        </View>
+      ) : (
+        <Text style={styles.noReply}>No reply yet</Text>
+      )}
+
       <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()}</Text>
-    </TouchableOpacity>
+
+      <View style={styles.actionRow}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => openReplyModal(item)}>
+          <Text style={styles.actionButtonText}>{item.reply ? 'Edit Reply' : 'Reply'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={() => askDeleteFeedback(item)}>
+          <Text style={styles.actionButtonText}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 
   if (loading && !refreshing) {
@@ -108,6 +221,33 @@ const FeedbackList = ({ navigation }) => {
           </View>
         }
       />
+
+      <Modal transparent visible={replyModalVisible} animationType="fade" onRequestClose={closeReplyModal}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Reply to Feedback</Text>
+            <TextInput
+              style={styles.replyInput}
+              placeholder="Type your reply"
+              value={replyText}
+              onChangeText={setReplyText}
+              multiline
+            />
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity style={[styles.modalButton, styles.modalCancel]} onPress={closeReplyModal}>
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalSubmit, actionLoading && styles.disabledButton]}
+                onPress={submitReply}
+                disabled={actionLoading}
+              >
+                <Text style={styles.modalButtonText}>{actionLoading ? 'Saving...' : 'Save Reply'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -167,6 +307,21 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     elevation: 2,
   },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  detailLabel: {
+    width: 100,
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  detailValue: {
+    flex: 1,
+    color: '#1e293b',
+    fontSize: 12,
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -198,9 +353,61 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     marginBottom: 6,
   },
+  feedbackImage: {
+    width: '100%',
+    height: 160,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 8,
+    backgroundColor: '#ecf0f1',
+  },
+  replyBox: {
+    marginTop: 6,
+    padding: 8,
+    backgroundColor: '#ecfdf5',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  replyTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#065f46',
+    marginBottom: 3,
+  },
+  replyText: {
+    fontSize: 12,
+    color: '#14532d',
+  },
+  noReply: {
+    marginTop: 6,
+    color: '#94a3b8',
+    fontSize: 12,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 10,
+  },
+  actionButton: {
+    backgroundColor: '#0ea5e9',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  deleteButton: {
+    backgroundColor: '#ef4444',
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   date: {
     fontSize: 11,
     color: '#95a5a6',
+    marginTop: 4,
   },
   emptyContainer: {
     flex: 1,
@@ -211,6 +418,58 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#7f8c8d',
     fontSize: 16,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 14,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 10,
+  },
+  replyInput: {
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    padding: 10,
+    fontSize: 14,
+    color: '#0f172a',
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 12,
+  },
+  modalButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  modalCancel: {
+    backgroundColor: '#64748b',
+  },
+  modalSubmit: {
+    backgroundColor: '#16a34a',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });
 

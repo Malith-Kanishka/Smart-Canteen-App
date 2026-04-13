@@ -2,7 +2,6 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import FeedbackList from '../screens/FeedbackList';
-import CreateFeedback from '../screens/CreateFeedback';
 import ProfileScreen from '../../shared/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
@@ -18,7 +17,6 @@ const FeedbackTabs = () => {
       }}
     >
       <Tab.Screen name="List" component={FeedbackList} options={{ title: 'Feedback' }} />
-      <Tab.Screen name="Create" component={CreateFeedback} options={{ title: 'Submit' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

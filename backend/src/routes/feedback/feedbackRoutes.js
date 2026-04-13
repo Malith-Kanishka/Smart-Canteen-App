@@ -6,9 +6,8 @@ const feedbackController = require('../../controllers/feedback/feedbackControlle
 
 // Feedback Management
 router.get('/', auth, roleAccess('feedback'), feedbackController.getFeedback);
-router.get('/:id', auth, roleAccess('feedback'), feedbackController.getFeedbackById);
-router.post('/', auth, roleAccess('feedback', 'customer'), complaintUpload.single('image'), feedbackController.createFeedback);
-router.put('/:id/status', auth, roleAccess('feedback'), feedbackController.updateFeedbackStatus);
+router.get('/my', auth, roleAccess('customer'), feedbackController.getMyFeedback);
+router.post('/', auth, roleAccess('customer', 'feedback'), complaintUpload.single('image'), feedbackController.createFeedback);
 
 // Profile
 router.get('/profile', auth, roleAccess('feedback'), feedbackController.getProfile);
@@ -16,5 +15,11 @@ router.put('/profile', auth, roleAccess('feedback'), feedbackController.updatePr
 router.put('/change-password', auth, roleAccess('feedback'), feedbackController.changePassword);
 router.post('/profile/photo', auth, roleAccess('feedback'), profileUpload.single('photo'), feedbackController.uploadProfilePhoto);
 router.delete('/profile/photo', auth, roleAccess('feedback'), feedbackController.deleteProfilePhoto);
+
+// ID-based feedback actions
+router.get('/:id', auth, roleAccess('feedback'), feedbackController.getFeedbackById);
+router.put('/:id/status', auth, roleAccess('feedback'), feedbackController.updateFeedbackStatus);
+router.put('/:id/reply', auth, roleAccess('feedback'), feedbackController.replyToFeedback);
+router.delete('/:id', auth, roleAccess('feedback'), feedbackController.deleteFeedback);
 
 module.exports = router;

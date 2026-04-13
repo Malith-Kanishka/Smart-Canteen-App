@@ -34,6 +34,19 @@ const feedbackSchema = new mongoose.Schema(
       type: String,
       enum: ['pending', 'resolved'],
       default: 'pending'
+    },
+    reply: {
+      type: String,
+      default: null
+    },
+    repliedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    repliedAt: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }

@@ -57,13 +57,14 @@ export const financeService = {
 export const feedbackService = {
   getFeedback: (type, status, userId) =>
     api.get('/feedback', { params: { type, status, userId } }),
+  getMyFeedback: () => api.get('/feedback/my'),
   getFeedbackById: (id) => api.get(`/feedback/${id}`),
   createFeedback: (data, imageFile) => {
     const formData = new FormData();
-    formData.append('type', data.type);
-    formData.append('rating', data.rating);
+    if (data.type) formData.append('type', data.type);
+    if (data.rating) formData.append('rating', data.rating);
     formData.append('comment', data.comment);
-    formData.append('orderId', data.orderId);
+    if (data.orderId) formData.append('orderId', data.orderId);
     if (imageFile) {
       formData.append('image', imageFile);
     }
@@ -73,6 +74,9 @@ export const feedbackService = {
   },
   updateFeedbackStatus: (id, status) =>
     api.put(`/feedback/${id}/status`, { status }),
+  replyToFeedback: (id, reply, status = 'resolved') =>
+    api.put(`/feedback/${id}/reply`, { reply, status }),
+  deleteFeedback: (id) => api.delete(`/feedback/${id}`),
 };
 
 /**

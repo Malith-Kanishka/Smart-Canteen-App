@@ -6,9 +6,7 @@ const orderController = require('../../controllers/order/orderController');
 
 // Orders
 router.get('/', auth, roleAccess('order'), orderController.getOrders);
-router.get('/:id', auth, roleAccess('order'), orderController.getOrderById);
 router.post('/', auth, roleAccess('order'), orderController.createOrder);
-router.put('/:id/status', auth, roleAccess('order'), orderController.updateOrderStatus);
 
 // Profile
 router.get('/profile', auth, roleAccess('order'), orderController.getProfile);
@@ -22,9 +20,8 @@ router.get('/kitchen-display', auth, roleAccess('order'), (req, res) => {
   res.json({ message: 'Kitchen display - Implementation pending' });
 });
 
-// Profile Management
-router.get('/profile', auth, roleAccess('order'), (req, res) => {
-  res.json({ message: 'Get profile - Implementation pending' });
-});
+// ID-based order actions
+router.get('/:id', auth, roleAccess('order'), orderController.getOrderById);
+router.put('/:id/status', auth, roleAccess('order'), orderController.updateOrderStatus);
 
 module.exports = router;
