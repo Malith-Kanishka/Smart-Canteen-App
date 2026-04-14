@@ -10,8 +10,9 @@ router.get('/dashboard', auth, roleAccess('finance'), financeController.getDashb
 // Transactions
 router.get('/transactions', auth, roleAccess('finance'), financeController.getTransactions);
 router.get('/transactions/:id', auth, roleAccess('finance'), financeController.getTransactionById);
-router.post('/transactions', auth, roleAccess('finance'), financeController.createTransaction);
+router.post('/transactions', auth, roleAccess('finance', 'customer'), financeController.createTransaction);
 router.post('/transactions/:id/refund', auth, roleAccess('finance'), financeController.refundTransaction);
+router.delete('/transactions/:id', auth, roleAccess('finance'), financeController.deleteTransaction);
 
 // Profile
 router.get('/profile', auth, roleAccess('finance'), financeController.getProfile);

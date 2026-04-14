@@ -1,11 +1,116 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { orderService } from '../../shared/api/services';
 
 const KitchenDisplay = () => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [error, setError] = useState('');
+
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await orderService.getKitchenDisplay(statusFilter === 'all' ? undefined : statusFilter);
+      setOrders(data || []);
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load kitchen display');
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadOrders();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [loadOrders]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadOrders();
+    setRefreshing(false);
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending':
+        return '#f59e0b';
+      case 'completed':
+        return '#16a34a';
+      case 'void':
+        return '#ef4444';
+      case 'refunded':
+        return '#6366f1';
+      default:
+        return '#64748b';
+    }
+  };
+
+  const renderOrder = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.rowBetween}>
+        <Text style={styles.orderId}>{item.orderId}</Text>
+        <View style={[styles.badge, { backgroundColor: getStatusColor(item.status) }]}>
+          <Text style={styles.badgeText}>{item.status}</Text>
+        </View>
+      </View>
+      <Text style={styles.receivedAt}>Received: {new Date(item.createdAt).toLocaleString()}</Text>
+      <Text style={styles.amount}>Total: Rs. {Number(item.payableAmount || 0).toFixed(2)}</Text>
+      {(item.items || []).map((food, index) => (
+        <Text key={`${item._id}-${index}`} style={styles.foodLine}>• {food.itemName} x {food.quantity}</Text>
+      ))}
+    </View>
+  );
+
+  if (loading && !refreshing) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#1abc9c" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Kitchen Display</Text>
-      <Text style={styles.placeholder}>Implementation pending</Text>
+      {!!error ? <Text style={styles.error}>{error}</Text> : null}
+
+      <View style={styles.filters}>
+        {['all', 'pending', 'completed', 'void', 'refunded'].map((status) => (
+          <TouchableOpacity
+            key={status}
+            style={[styles.filterBtn, statusFilter === status && styles.filterBtnActive]}
+            onPress={() => setStatusFilter(status)}
+          >
+            <Text style={[styles.filterText, statusFilter === status && styles.filterTextActive]}>{status}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <FlatList
+        data={orders}
+        renderItem={renderOrder}
+        keyExtractor={(item) => item._id}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ListEmptyComponent={<Text style={styles.empty}>No kitchen orders found</Text>}
+      />
     </View>
   );
 };
@@ -13,19 +118,32 @@ const KitchenDisplay = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#f5f5f5',
+    paddingTop: 12,
+    paddingHorizontal: 10,
   },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#1abc9c',
+    marginBottom: 8,
   },
-  placeholder: {
-    marginTop: 10,
-    color: '#7f8c8d',
-  },
+  error: { color: '#dc2626', marginBottom: 8 },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  filterBtn: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
+  filterBtnActive: { backgroundColor: '#1abc9c', borderColor: '#1abc9c' },
+  filterText: { color: '#475569', fontSize: 12, fontWeight: '700' },
+  filterTextActive: { color: '#fff' },
+  card: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 10, elevation: 1 },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  orderId: { fontSize: 15, fontWeight: '700', color: '#0f172a' },
+  badge: { borderRadius: 12, paddingVertical: 4, paddingHorizontal: 10 },
+  badgeText: { color: '#fff', fontWeight: '700', fontSize: 11 },
+  receivedAt: { color: '#64748b', marginTop: 6, fontSize: 12 },
+  amount: { marginTop: 4, fontSize: 13, fontWeight: '700', color: '#0f766e' },
+  foodLine: { marginTop: 3, color: '#334155', fontSize: 13 },
+  empty: { color: '#64748b', textAlign: 'center', marginTop: 20 },
 });
 
 export default KitchenDisplay;

@@ -31,9 +31,13 @@ export const customerService = {
 export const orderService = {
   getOrders: (status, search) =>
     api.get('/order', { params: { status, search } }),
+  getMyOrders: () => api.get('/order/my'),
+  getMyPendingOrder: () => api.get('/order/my-pending'),
   getOrderById: (id) => api.get(`/order/${id}`),
-  createOrder: (items) =>
-    api.post('/order', { items }),
+  createOrder: (items) => api.post('/order', { items }),
+  updatePendingOrder: (id, items) => api.put(`/order/${id}`, { items }),
+  voidOrder: (id) => api.put(`/order/${id}/void`),
+  getKitchenDisplay: (status) => api.get('/order/kitchen-display', { params: { status } }),
   updateOrderStatus: (id, status) =>
     api.put(`/order/${id}/status`, { status }),
 };
@@ -43,12 +47,12 @@ export const orderService = {
  */
 export const financeService = {
   getDashboard: () => api.get('/finance/dashboard'),
-  getTransactions: (status, paymentType) =>
-    api.get('/finance/transactions', { params: { status, paymentType } }),
+  getTransactions: (status, paymentType, startDate, endDate) =>
+    api.get('/finance/transactions', { params: { status, paymentType, startDate, endDate } }),
   getTransactionById: (id) => api.get(`/finance/transactions/${id}`),
-  createTransaction: (orderId, paymentType, amountReceived, cardDetails) =>
-    api.post('/finance/transactions', { orderId, paymentType, amountReceived, cardDetails }),
+  createTransaction: (payload) => api.post('/finance/transactions', payload),
   refundTransaction: (id) => api.post(`/finance/transactions/${id}/refund`),
+  deleteTransaction: (id) => api.delete(`/finance/transactions/${id}`),
 };
 
 /**

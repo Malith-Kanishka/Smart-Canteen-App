@@ -11,7 +11,11 @@ import {
   Image,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import api from '../../shared/api/axiosConfig';
+
+const CUSTOMER_CART_KEY = 'customerCart';
 
 const BrowseMenu = ({ navigation }) => {
   const [menuItems, setMenuItems] = useState([]);
@@ -21,6 +25,37 @@ const BrowseMenu = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [error, setError] = useState('');
+
+  const selectedTotalCount = Object.values(selectedCounts).reduce((sum, qty) => sum + Number(qty || 0), 0);
+
+  const persistCart = async (nextCart) => {
+    try {
+      const compact = Object.entries(nextCart).reduce((acc, [key, qty]) => {
+        const parsedQty = Number(qty || 0);
+        if (parsedQty > 0) {
+          acc[key] = parsedQty;
+        }
+        return acc;
+      }, {});
+      await AsyncStorage.setItem(CUSTOMER_CART_KEY, JSON.stringify(compact));
+    } catch (_err) {
+      // Keep UI responsive even if local storage fails.
+    }
+  };
+
+  const hydrateCart = async () => {
+    try {
+      const raw = await AsyncStorage.getItem(CUSTOMER_CART_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setSelectedCounts(parsed || {});
+      } else {
+        setSelectedCounts({});
+      }
+    } catch (_err) {
+      setSelectedCounts({});
+    }
+  };
 
   const fetchMenu = useCallback(async () => {
     setLoading(true);
@@ -43,7 +78,17 @@ const BrowseMenu = ({ navigation }) => {
 
   useEffect(() => {
     fetchMenu();
-  }, [searchText]);
+  }, [searchText, fetchMenu]);
+
+  useEffect(() => {
+    hydrateCart();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      hydrateCart();
+    }, [])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -56,7 +101,28 @@ const BrowseMenu = ({ navigation }) => {
       const currentValue = prev[item._id] || 0;
       const maxAllowed = Math.max(0, Number(item.quantity) || 0);
       const nextValue = Math.min(maxAllowed, Math.max(0, currentValue + delta));
-      return { ...prev, [item._id]: nextValue };
+
+      const nextMap = { ...prev };
+      if (nextValue <= 0) {
+        delete nextMap[item._id];
+      } else {
+        nextMap[item._id] = nextValue;
+      }
+
+      persistCart(nextMap);
+      return nextMap;
+    });
+  };
+
+  const goToOrderSummary = () => {
+    if (selectedTotalCount <= 0) {
+      Alert.alert('Cart empty', 'Add at least one menu item first.');
+      return;
+    }
+    navigation.navigate('ManualOrder', {
+      openSummary: true,
+      triggerAt: Date.now(),
+      cartSnapshot: selectedCounts,
     });
   };
 
@@ -149,6 +215,12 @@ const BrowseMenu = ({ navigation }) => {
           </View>
         }
       />
+
+      <View style={styles.summaryButtonWrap}>
+        <TouchableOpacity style={styles.summaryButton} onPress={goToOrderSummary}>
+          <Text style={styles.summaryButtonText}>View Order Summary ({selectedTotalCount})</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -315,6 +387,20 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#7f8c8d',
     fontSize: 16,
+  },
+  summaryButtonWrap: {
+    paddingVertical: 10,
+  },
+  summaryButton: {
+    backgroundColor: '#0f766e',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  summaryButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
 

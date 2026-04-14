@@ -6,6 +6,11 @@ const orderSchema = new mongoose.Schema(
       type: String,
       unique: true
     },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
     items: [
       {
         menuItemId: mongoose.Schema.Types.ObjectId,
@@ -32,7 +37,10 @@ const orderSchema = new mongoose.Schema(
       type: String,
       enum: ['pending', 'completed', 'void', 'refunded'],
       default: 'pending'
-    }
+    },
+    completedAt: Date,
+    voidedAt: Date,
+    refundedAt: Date
   },
   { timestamps: true }
 );

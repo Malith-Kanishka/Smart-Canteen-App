@@ -1,10 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import BillingSystem from '../screens/BillingSystem';
-import FinanceDashboard from '../screens/FinanceDashboard';
 import TransactionsList from '../screens/TransactionsList';
-import KitchenDisplay from '../screens/KitchenDisplay';
 import ProfileScreen from '../../shared/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
@@ -19,10 +16,7 @@ const FinanceTabs = () => {
         tabBarInactiveTintColor: '#bdc3c7',
       }}
     >
-      <Tab.Screen name="Billing" component={BillingSystem} options={{ title: 'Payment' }} />
-      <Tab.Screen name="Dashboard" component={FinanceDashboard} />
       <Tab.Screen name="Transactions" component={TransactionsList} />
-      <Tab.Screen name="Kitchen" component={KitchenDisplay} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

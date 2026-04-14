@@ -15,6 +15,30 @@ const transactionSchema = new mongoose.Schema(
       enum: ['card', 'cash'],
       required: true
     },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    subtotal: {
+      type: Number,
+      default: 0
+    },
+    totalDiscount: {
+      type: Number,
+      default: 0
+    },
+    payableAmount: {
+      type: Number,
+      default: 0
+    },
+    itemsSummary: [
+      {
+        itemName: String,
+        quantity: Number,
+        unitPrice: Number,
+        lineTotal: Number
+      }
+    ],
     amountReceived: Number,
     change: Number,
     cardDetails: {
@@ -22,11 +46,13 @@ const transactionSchema = new mongoose.Schema(
       cardHolderName: String,
       expiryDate: String
     },
+    stripePaymentIntentId: String,
     status: {
       type: String,
-      enum: ['completed', 'refunded', 'cancelled'],
-      default: 'completed'
-    }
+      enum: ['complete', 'refund', 'pending', 'failed'],
+      default: 'complete'
+    },
+    refundedAt: Date
   },
   { timestamps: true }
 );

@@ -2,7 +2,8 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import BrowseMenu from '../screens/BrowseMenu';
-import MyOrders from '../screens/MyOrders';
+import ManualOrder from '../screens/ManualOrder';
+import BillingSystem from '../screens/BillingSystem';
 import MyFeedback from '../screens/MyFeedback';
 import ProfileScreen from '../../shared/screens/ProfileScreen';
 
@@ -19,7 +20,8 @@ const CustomerTabs = () => {
       }}
     >
       <Tab.Screen name="Menu" component={BrowseMenu} />
-      <Tab.Screen name="MyOrders" component={MyOrders} options={{ title: 'Orders' }} />
+      <Tab.Screen name="ManualOrder" component={ManualOrder} options={{ title: 'Order' }} />
+      <Tab.Screen name="Billing" component={BillingSystem} />
       <Tab.Screen name="MyFeedback" component={MyFeedback} options={{ title: 'Feedback' }} />
       <Tab.Screen name="Profile">
         {(props) => <ProfileScreen {...props} userRole="customer" />}
