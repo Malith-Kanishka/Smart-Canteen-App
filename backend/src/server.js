@@ -5,7 +5,7 @@ require('dotenv').config();
 
 const config = require('./config/config');
 const connectDB = require('./config/database');
-const { ensureUploadDirs } = require('./middleware/upload');
+const { ensureUploadDirs, receiptUpload } = require('./middleware/upload');
 
 // Initialize Express App
 const app = express();
@@ -86,6 +86,27 @@ app.use('/api/feedback', require('./routes/feedback/feedbackRoutes'));
 
 // ==================== CUSTOMER ROUTES ====================
 app.use('/api/customer', require('./routes/customer/customerRoutes'));
+
+// ==================== RECEIPT UPLOAD ====================
+app.post('/api/save-receipt', receiptUpload.single('receipt'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No receipt file provided' });
+    }
+
+    const receiptPath = `/uploads/receipts/${req.file.filename}`;
+    res.json({
+      message: 'Receipt saved successfully',
+      filename: req.file.filename,
+      path: receiptPath,
+      transactionId: req.body.transactionId,
+      orderId: req.body.orderId
+    });
+  } catch (err) {
+    console.error('Receipt upload error:', err);
+    res.status(500).json({ message: 'Failed to save receipt', error: err.message });
+  }
+});
 
 // 404 Handler
 app.use((req, res) => {

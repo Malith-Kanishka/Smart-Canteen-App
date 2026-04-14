@@ -129,10 +129,34 @@ const menuItemUpload = multer({
   }
 });
 
+// Receipt Upload
+const receiptStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, './uploads/receipts');
+  },
+  filename: (req, file, cb) => {
+    cb(null, `receipt-${Date.now()}${path.extname(file.originalname)}`);
+  }
+});
+
+const receiptUpload = multer({
+  storage: receiptStorage,
+  limits: { fileSize: 1048576 }, // 1MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /text|plain/;
+    const extname = /\.txt$/.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if ((mimetype || extname) && extname) return cb(null, true);
+    cb(new Error('Only text files are allowed'));
+  }
+});
+
 module.exports = {
   profileUpload,
   foodUpload,
   menuItemUpload,
   complaintUpload,
+  receiptUpload,
   ensureUploadDirs
 };

@@ -87,7 +87,8 @@ const BrowseMenu = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       hydrateCart();
-    }, [])
+      fetchMenu(); // Refresh menu data when returning from other screens
+    }, [fetchMenu])
   );
 
   const onRefresh = async () => {

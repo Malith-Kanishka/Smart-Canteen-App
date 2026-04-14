@@ -241,48 +241,116 @@ const ManualOrder = ({ navigation, route }) => {
       <Modal transparent visible={summaryOpen} animationType="fade" onRequestClose={() => setSummaryOpen(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.summaryTitle}>Order Summary</Text>
-            {selectedItems.length === 0 ? <Text style={styles.summaryRow}>No items selected</Text> : null}
-            {selectedItems.map((item) => {
-              const qty = Number(cart[item._id] || 0);
-              const price = Number(item.price || 0);
-              return (
-                <View key={item._id} style={styles.itemRowWrap}>
-                  <Text style={styles.summaryRow}>{item.name} x {qty} = Rs. {(price * qty).toFixed(2)}</Text>
-                  <View style={styles.qtyAdjustRow}>
-                    <TouchableOpacity style={styles.qtyAdjustBtn} onPress={() => adjustSummaryQty(item, -1)}>
-                      <Text style={styles.qtyAdjustBtnText}>-</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.qtyAdjustBtn, qty >= Math.max(0, Number(item.quantity || 0)) && styles.disabledBtn]}
-                      onPress={() => adjustSummaryQty(item, 1)}
-                      disabled={qty >= Math.max(0, Number(item.quantity || 0))}
-                    >
-                      <Text style={styles.qtyAdjustBtnText}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              );
-            })}
-            <Text style={styles.summaryRow}>Subtotal: Rs. {summary.subtotal.toFixed(2)}</Text>
-            <Text style={styles.summaryRow}>Daily savings: Rs. {summary.dailySavings.toFixed(2)}</Text>
-            <Text style={styles.summaryRow}>Seasonal savings: Rs. {summary.seasonalSavings.toFixed(2)}</Text>
-            <Text style={styles.summaryRow}>Total savings: Rs. {summary.totalSavings.toFixed(2)}</Text>
-            <Text style={styles.summaryPayable}>Final payable: Rs. {summary.payable.toFixed(2)}</Text>
+            <View style={styles.summaryHeader}>
+              <Text style={styles.summaryTitle}>Order Summary</Text>
+              <Text style={styles.summarySubtitle}>Items: {selectedItems.length}</Text>
+            </View>
 
+            <View style={styles.divider} />
+
+            {/* Items List */}
+            <View style={styles.itemsSection}>
+              {selectedItems.length === 0 ? (
+                <Text style={styles.noItems}>No items selected</Text>
+              ) : (
+                selectedItems.map((item) => {
+                  const qty = Number(cart[item._id] || 0);
+                  const price = Number(item.price || 0);
+                  const itemSubtotal = price * qty;
+                  const dailyDiscountPercent = Number(item.dailyDiscount?.discountPercentage || 0);
+                  const dailyDiscountAmt = (price * dailyDiscountPercent * qty) / 100;
+                  const lineTotal = itemSubtotal - dailyDiscountAmt;
+
+                  return (
+                    <View key={item._id} style={styles.itemRowWrap}>
+                      <View style={styles.itemInfo}>
+                        <Text style={styles.itemName}>{item.name}</Text>
+                        {dailyDiscountPercent > 0 && (
+                          <Text style={styles.itemDiscount}>Daily Discount: {dailyDiscountPercent}% off</Text>
+                        )}
+                      </View>
+                      <View style={styles.itemQtyPrice}>
+                        <Text style={styles.itemQty}>x{qty}</Text>
+                        <Text style={styles.itemPrice}>Rs. {lineTotal.toFixed(2)}</Text>
+                      </View>
+                      <View style={styles.qtyAdjustRow}>
+                        <TouchableOpacity style={styles.qtyAdjustBtn} onPress={() => adjustSummaryQty(item, -1)}>
+                          <Text style={styles.qtyAdjustBtnText}>−</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.qtyAdjustBtn, qty >= Math.max(0, Number(item.quantity || 0)) && styles.disabledBtn]}
+                          onPress={() => adjustSummaryQty(item, 1)}
+                          disabled={qty >= Math.max(0, Number(item.quantity || 0))}
+                        >
+                          <Text style={styles.qtyAdjustBtnText}>+</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Totals Section */}
+            <View style={styles.totalsSection}>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Subtotal</Text>
+                <Text style={styles.totalValue}>Rs. {summary.subtotal.toFixed(2)}</Text>
+              </View>
+              {summary.dailySavings > 0 && (
+                <View style={styles.totalRow}>
+                  <Text style={[styles.totalLabel, styles.discountLabel]}>Daily Savings</Text>
+                  <Text style={[styles.totalValue, styles.discountValue]}>-Rs. {summary.dailySavings.toFixed(2)}</Text>
+                </View>
+              )}
+              {summary.seasonalSavings > 0 && (
+                <View style={styles.totalRow}>
+                  <Text style={[styles.totalLabel, styles.discountLabel]}>Seasonal Savings</Text>
+                  <Text style={[styles.totalValue, styles.discountValue]}>-Rs. {summary.seasonalSavings.toFixed(2)}</Text>
+                </View>
+              )}
+              {summary.totalSavings > 0 && (
+                <View style={styles.totalRow}>
+                  <Text style={[styles.totalLabel, styles.discountLabel]}>Total Savings</Text>
+                  <Text style={[styles.totalValue, styles.discountValue]}>-Rs. {summary.totalSavings.toFixed(2)}</Text>
+                </View>
+              )}
+              <View style={styles.finalTotalRow}>
+                <Text style={styles.finalTotalLabel}>Amount to Pay</Text>
+                <Text style={styles.finalTotalValue}>Rs. {summary.payable.toFixed(2)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Action Buttons */}
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.menuBtn} onPress={backToMenuToAddItems}>
-                <Text style={styles.primaryBtnText}>Back to Menu</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.closeBtn} onPress={() => setSummaryOpen(false)}>
-                <Text style={styles.primaryBtnText}>Close</Text>
+                <Text style={styles.primaryBtnText}>Add More Items</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.primaryBtn, saving && styles.disabledBtn]}
                 onPress={proceedToPayment}
                 disabled={saving || selectedItems.length === 0}
               >
-                <Text style={styles.primaryBtnText}>{saving ? 'Saving...' : 'Proceed to Payment'}</Text>
+                <Text style={styles.primaryBtnText}>{saving ? 'Processing...' : 'Proceed to Payment'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.voidBtn, saving && styles.disabledBtn]}
+                onPress={async () => {
+                  if (pendingOrder) {
+                    await cancelPendingOrder();
+                  } else {
+                    setCart({});
+                    await persistCart({});
+                  }
+                  setSummaryOpen(false);
+                }}
+                disabled={saving}
+              >
+                <Text style={styles.primaryBtnText}>Cancel Order</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -295,42 +363,50 @@ const ManualOrder = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5', paddingTop: 10 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  error: { color: '#dc2626', paddingHorizontal: 12, marginBottom: 8 },
-  contentCard: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginHorizontal: 10, elevation: 2 },
+  error: { color: '#dc2626', paddingHorizontal: 12, marginBottom: 8, fontWeight: '600' },
+  contentCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginHorizontal: 10, elevation: 2, marginBottom: 12 },
   infoTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginBottom: 8 },
-  infoText: { fontSize: 13, color: '#334155', marginBottom: 4 },
-  summaryCard: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 10, elevation: 2 },
-  summaryTitle: { fontSize: 17, fontWeight: '700', color: '#0f172a', marginBottom: 8 },
-  summaryRow: { fontSize: 13, color: '#334155', marginBottom: 2 },
-  summaryPayable: { fontSize: 16, fontWeight: '700', color: '#0f766e', marginTop: 6, marginBottom: 10 },
-  primaryBtn: { backgroundColor: '#1abc9c', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
-  voidBtn: { marginTop: 8, backgroundColor: '#ef4444', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
-  closeBtn: { backgroundColor: '#64748b', borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginBottom: 8 },
-  menuBtn: { backgroundColor: '#334155', borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginBottom: 8 },
-  primaryBtnText: { color: '#fff', fontWeight: '700' },
+  infoText: { fontSize: 13, color: '#64748b', marginBottom: 4 },
+  primaryBtn: { backgroundColor: '#1abc9c', borderRadius: 8, paddingVertical: 11, alignItems: 'center', marginTop: 10 },
+  voidBtn: { backgroundColor: '#ef4444', borderRadius: 8, paddingVertical: 11, alignItems: 'center', marginTop: 8 },
+  closeBtn: { backgroundColor: '#64748b', borderRadius: 8, paddingVertical: 11, alignItems: 'center', marginBottom: 8 },
+  menuBtn: { backgroundColor: '#334155', borderRadius: 8, paddingVertical: 11, alignItems: 'center', marginBottom: 8 },
+  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   disabledBtn: { opacity: 0.5 },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 14 },
-  modalCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14, maxHeight: '85%' },
-  modalActions: { marginTop: 8 },
-  itemRowWrap: {
-    marginBottom: 6,
-  },
-  qtyAdjustRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  qtyAdjustBtn: {
-    backgroundColor: '#0f766e',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  qtyAdjustBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
-  },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 14 },
+  modalCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, maxHeight: '90%' },
+  modalActions: { marginTop: 4 },
+  
+  // Summary Header
+  summaryHeader: { marginBottom: 10 },
+  summaryTitle: { fontSize: 19, fontWeight: '700', color: '#0f172a' },
+  summarySubtitle: { fontSize: 11, color: '#94a3b8', marginTop: 2 },
+  divider: { height: 1, backgroundColor: '#e2e8f0', marginVertical: 10 },
+  noItems: { fontSize: 13, color: '#94a3b8', textAlign: 'center', paddingVertical: 12 },
+  
+  // Items Section
+  itemsSection: { marginBottom: 6 },
+  itemRowWrap: { flexDirection: 'row', marginBottom: 10, alignItems: 'center', backgroundColor: '#f8fafc', padding: 10, borderRadius: 8 },
+  itemInfo: { flex: 1 },
+  itemName: { fontSize: 13, fontWeight: '600', color: '#0f172a' },
+  itemDiscount: { fontSize: 11, color: '#dc2626', marginTop: 3, fontStyle: 'italic' },
+  itemQtyPrice: { marginHorizontal: 8, alignItems: 'center' },
+  itemQty: { fontSize: 12, color: '#64748b', marginBottom: 2 },
+  itemPrice: { fontSize: 13, fontWeight: '700', color: '#0f172a' },
+  qtyAdjustRow: { flexDirection: 'row', gap: 4 },
+  qtyAdjustBtn: { backgroundColor: '#0f766e', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 6, minWidth: 34, alignItems: 'center' },
+  qtyAdjustBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  
+  // Totals Section
+  totalsSection: { backgroundColor: '#f8fafc', padding: 10, borderRadius: 8, marginBottom: 4 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
+  totalLabel: { fontSize: 12, color: '#64748b', fontWeight: '500' },
+  totalValue: { fontSize: 12, fontWeight: '600', color: '#0f172a' },
+  discountLabel: { color: '#dc2626' },
+  discountValue: { color: '#dc2626', fontWeight: '700' },
+  finalTotalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 4, borderTopWidth: 1, borderTopColor: '#cbd5e1' },
+  finalTotalLabel: { fontSize: 13, fontWeight: '700', color: '#0f172a' },
+  finalTotalValue: { fontSize: 15, fontWeight: '700', color: '#16a34a' },
 });
 
 export default ManualOrder;
