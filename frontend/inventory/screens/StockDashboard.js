@@ -30,6 +30,8 @@ const StockDashboard = () => {
 
   const [addForm, setAddForm] = useState({ itemName: '', currentQty: '', minQty: '', maxQty: '', unitPrice: '' });
   const [editForm, setEditForm] = useState({ itemName: '', currentQty: '', minQty: '', maxQty: '', unitPrice: '' });
+  const [addError, setAddError] = useState('');
+  const [editError, setEditError] = useState('');
   const [saving, setSaving] = useState(false);
   const [menuItems, setMenuItems] = useState([]);
   const [menuItemsLoading, setMenuItemsLoading] = useState(false);
@@ -88,24 +90,35 @@ const StockDashboard = () => {
   };
 
   const submitAddItem = async () => {
+    const currentQty = Number(addForm.currentQty);
+    const minQty = Number(addForm.minQty);
+    const maxQty = Number(addForm.maxQty);
+    const unitPrice = Number(addForm.unitPrice);
+
+    setAddError('');
+
     if (!addForm.itemName.trim()) {
-      Alert.alert('Validation', 'Please select a menu item');
+      setAddError('Please select a menu item');
       return;
     }
-    if (!addForm.currentQty || isNaN(addForm.currentQty) || Number(addForm.currentQty) <= 0) {
-      Alert.alert('Validation', 'Current quantity must be greater than 0');
+    if (!addForm.currentQty || isNaN(currentQty) || currentQty <= 0) {
+      setAddError('Current quantity must be greater than zero');
       return;
     }
-    if (!addForm.minQty || isNaN(addForm.minQty)) {
-      Alert.alert('Validation', 'Valid minimum quantity is required');
+    if (!addForm.minQty || isNaN(minQty) || minQty <= 5) {
+      setAddError('Minimum quantity must be greater than 5');
       return;
     }
-    if (!addForm.maxQty || isNaN(addForm.maxQty)) {
-      Alert.alert('Validation', 'Valid maximum quantity is required');
+    if (!addForm.maxQty || isNaN(maxQty) || maxQty <= 0) {
+      setAddError('Maximum quantity must be greater than zero');
       return;
     }
-    if (!addForm.unitPrice || isNaN(addForm.unitPrice)) {
-      Alert.alert('Validation', 'Valid unit price is required');
+    if (minQty >= maxQty) {
+      setAddError('Minimum quantity must be less than maximum quantity');
+      return;
+    }
+    if (!addForm.unitPrice || isNaN(unitPrice) || unitPrice <= 0) {
+      setAddError('Unit price must be greater than zero in Rs.');
       return;
     }
 
@@ -139,10 +152,39 @@ const StockDashboard = () => {
       maxQty: String(item.maxQty),
       unitPrice: String(item.unitPrice)
     });
+    setEditError('');
     setEditOpen(true);
   };
 
   const submitEditItem = async () => {
+    const currentQty = Number(editForm.currentQty);
+    const minQty = Number(editForm.minQty);
+    const maxQty = Number(editForm.maxQty);
+    const unitPrice = Number(editForm.unitPrice);
+
+    setEditError('');
+
+    if (!editForm.currentQty || isNaN(currentQty) || currentQty <= 0) {
+      setEditError('Current quantity must be greater than zero');
+      return;
+    }
+    if (!editForm.minQty || isNaN(minQty) || minQty <= 5) {
+      setEditError('Minimum quantity must be greater than 5');
+      return;
+    }
+    if (!editForm.maxQty || isNaN(maxQty) || maxQty <= 0) {
+      setEditError('Maximum quantity must be greater than zero');
+      return;
+    }
+    if (minQty >= maxQty) {
+      setEditError('Minimum quantity must be less than maximum quantity');
+      return;
+    }
+    if (!editForm.unitPrice || isNaN(unitPrice) || unitPrice <= 0) {
+      setEditError('Unit price must be greater than zero in Rs.');
+      return;
+    }
+
     setSaving(true);
     try {
       await api.put(`/inventory/stock/${editingItem._id}`, editForm);
@@ -240,7 +282,7 @@ const StockDashboard = () => {
       >
         <View style={styles.header}>
           <Text style={styles.title}>Stock Inventory</Text>
-          <TouchableOpacity style={styles.addButton} onPress={() => setAddOpen(true)}>
+          <TouchableOpacity style={styles.addButton} onPress={() => { setAddError(''); setAddOpen(true); }}>
             <Text style={styles.addButtonText}>+ Add Item</Text>
           </TouchableOpacity>
         </View>
@@ -322,6 +364,7 @@ const StockDashboard = () => {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Add Stock Item</Text>
             <ScrollView>
+              <Text style={styles.inputLabel}>Menu Item</Text>
               <TouchableOpacity
                 style={styles.dropdownTrigger}
                 onPress={() => setMenuDropdownOpen((prev) => !prev)}
@@ -356,39 +399,44 @@ const StockDashboard = () => {
                   )}
                 </View>
               )}
+              <Text style={styles.inputLabel}>Current Quantity</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Current Qty"
+                placeholder="Enter current quantity"
                 value={addForm.currentQty}
                 onChangeText={(v) => updateAddField('currentQty', v)}
                 keyboardType="number-pad"
               />
+              <Text style={styles.inputLabel}>Minimum Quantity</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Minimum Qty"
+                placeholder="Enter minimum quantity"
                 value={addForm.minQty}
                 onChangeText={(v) => updateAddField('minQty', v)}
                 keyboardType="number-pad"
               />
+              <Text style={styles.inputLabel}>Maximum Quantity</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Maximum Qty"
+                placeholder="Enter maximum quantity"
                 value={addForm.maxQty}
                 onChangeText={(v) => updateAddField('maxQty', v)}
                 keyboardType="number-pad"
               />
+              <Text style={styles.inputLabel}>Unit Price</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Unit Price (PKR)"
+                placeholder="Enter unit price in Rs."
                 value={addForm.unitPrice}
                 onChangeText={(v) => updateAddField('unitPrice', v)}
                 keyboardType="decimal-pad"
               />
 
+              {!!addError && <Text style={styles.errorText}>{addError}</Text>}
               <TouchableOpacity style={styles.primaryButton} onPress={submitAddItem} disabled={saving}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Add Item</Text>}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryButton} onPress={() => setAddOpen(false)}>
+              <TouchableOpacity style={styles.secondaryButton} onPress={() => { setAddError(''); setAddOpen(false); }}>
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -402,45 +450,51 @@ const StockDashboard = () => {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Stock Item</Text>
             <ScrollView>
+              <Text style={styles.inputLabel}>Item Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, styles.readOnlyInput]}
                 placeholder="Item Name"
                 value={editForm.itemName}
-                onChangeText={(v) => updateEditField('itemName', v)}
+                editable={false}
               />
+              <Text style={styles.inputLabel}>Current Quantity</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Current Qty"
+                placeholder="Enter current quantity"
                 value={editForm.currentQty}
                 onChangeText={(v) => updateEditField('currentQty', v)}
                 keyboardType="number-pad"
               />
+              <Text style={styles.inputLabel}>Minimum Quantity</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Minimum Qty"
+                placeholder="Enter minimum quantity"
                 value={editForm.minQty}
                 onChangeText={(v) => updateEditField('minQty', v)}
                 keyboardType="number-pad"
               />
+              <Text style={styles.inputLabel}>Maximum Quantity</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Maximum Qty"
+                placeholder="Enter maximum quantity"
                 value={editForm.maxQty}
                 onChangeText={(v) => updateEditField('maxQty', v)}
                 keyboardType="number-pad"
               />
+              <Text style={styles.inputLabel}>Unit Price</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Unit Price (PKR)"
+                placeholder="Enter unit price in Rs."
                 value={editForm.unitPrice}
                 onChangeText={(v) => updateEditField('unitPrice', v)}
                 keyboardType="decimal-pad"
               />
 
+              {!!editError && <Text style={styles.errorText}>{editError}</Text>}
               <TouchableOpacity style={styles.primaryButton} onPress={submitEditItem} disabled={saving}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Update Item</Text>}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryButton} onPress={() => setEditOpen(false)}>
+              <TouchableOpacity style={styles.secondaryButton} onPress={() => { setEditError(''); setEditOpen(false); }}>
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -528,6 +582,12 @@ const styles = StyleSheet.create({
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, maxHeight: '90%' },
   modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 14, color: '#1f2937' },
+  inputLabel: {
+    fontSize: 13,
+    color: '#334155',
+    marginBottom: 4,
+    fontWeight: '600'
+  },
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,
@@ -537,6 +597,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 10,
     fontSize: 14
+  },
+  readOnlyInput: {
+    backgroundColor: '#f8fafc',
+    color: '#64748b'
   },
   dropdownTrigger: {
     backgroundColor: '#fff',

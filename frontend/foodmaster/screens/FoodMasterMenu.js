@@ -32,6 +32,8 @@ const FoodMasterMenu = () => {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [editUploadedImage, setEditUploadedImage] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [addError, setAddError] = useState('');
+  const [editError, setEditError] = useState('');
 
   const fetchMenu = useCallback(async () => {
     setLoading(true);
@@ -112,15 +114,23 @@ const FoodMasterMenu = () => {
   };
 
   const submitAddItem = async () => {
-    if (!addForm.name.trim()) {
-      Alert.alert('Validation', 'Item name is required');
-      return;
-    }
-    if (!addForm.price || isNaN(addForm.price)) {
-      Alert.alert('Validation', 'Valid price is required');
+    if (!addForm.name.trim() || !addForm.price.trim() || !addForm.description.trim()) {
+      setAddError('All fields are required');
       return;
     }
 
+    if (!uploadedImage) {
+      setAddError('Please upload a photo for the menu item');
+      return;
+    }
+
+    const price = parseFloat(addForm.price);
+    if (isNaN(price) || price <= 0) {
+      setAddError('Price must be greater than zero');
+      return;
+    }
+
+    setAddError('');
     setSaving(true);
     try {
       const formData = new FormData();
@@ -144,7 +154,7 @@ const FoodMasterMenu = () => {
       await fetchMenu();
       Alert.alert('Success', 'Menu item added successfully');
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to add item');
+      setAddError(err.response?.data?.message || 'Failed to add item');
     } finally {
       setSaving(false);
     }
@@ -158,19 +168,18 @@ const FoodMasterMenu = () => {
       description: item.description || ''
     });
     setEditUploadedImage(null);
+    setEditError('');
     setEditOpen(true);
   };
 
   const submitEditItem = async () => {
-    if (!editForm.name.trim()) {
-      Alert.alert('Validation', 'Item name is required');
-      return;
-    }
-    if (!editForm.price || isNaN(editForm.price)) {
-      Alert.alert('Validation', 'Valid price is required');
+    const price = parseFloat(editForm.price);
+    if (isNaN(price) || price <= 0) {
+      setEditError('Price must be greater than zero');
       return;
     }
 
+    setEditError('');
     setSaving(true);
     try {
       const formData = new FormData();
@@ -194,7 +203,7 @@ const FoodMasterMenu = () => {
       await fetchMenu();
       Alert.alert('Success', 'Menu item updated successfully');
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to update item');
+      setEditError(err.response?.data?.message || 'Failed to update item');
     } finally {
       setSaving(false);
     }
@@ -274,7 +283,7 @@ const FoodMasterMenu = () => {
     <View>
       <View style={styles.header}>
         <Text style={styles.title}>Menu Catalog</Text>
-        <TouchableOpacity style={styles.addButton} onPress={() => setAddOpen(true)}>
+        <TouchableOpacity style={styles.addButton} onPress={() => { setAddError(''); setAddOpen(true); }}>
           <Text style={styles.addButtonText}>+ Add Item</Text>
         </TouchableOpacity>
       </View>
@@ -353,10 +362,12 @@ const FoodMasterMenu = () => {
                 </Text>
               </TouchableOpacity>
 
+              {!!addError && <Text style={styles.errorText}>{addError}</Text>}
+
               <TouchableOpacity style={styles.primaryButton} onPress={submitAddItem} disabled={saving}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Add Item</Text>}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryButton} onPress={() => setAddOpen(false)}>
+              <TouchableOpacity style={styles.secondaryButton} onPress={() => { setAddError(''); setAddOpen(false); }}>
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
@@ -370,12 +381,14 @@ const FoodMasterMenu = () => {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Menu Item</Text>
             <View>
+              <Text style={styles.inputLabel}>Item Name</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Item Name"
                 value={editForm.name}
                 onChangeText={(v) => updateEditField('name', v)}
               />
+              <Text style={styles.inputLabel}>Price (Rs.)</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Price (Rs.)"
@@ -383,6 +396,7 @@ const FoodMasterMenu = () => {
                 onChangeText={(v) => updateEditField('price', v)}
                 keyboardType="decimal-pad"
               />
+              <Text style={styles.inputLabel}>Description</Text>
               <TextInput
                 style={[styles.input, { height: 80 }]}
                 placeholder="Description"
@@ -406,10 +420,12 @@ const FoodMasterMenu = () => {
                 </Text>
               </TouchableOpacity>
 
+              {!!editError && <Text style={styles.errorText}>{editError}</Text>}
+
               <TouchableOpacity style={styles.primaryButton} onPress={submitEditItem} disabled={saving}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Update Item</Text>}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryButton} onPress={() => setEditOpen(false)}>
+              <TouchableOpacity style={styles.secondaryButton} onPress={() => { setEditError(''); setEditOpen(false); }}>
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
@@ -436,6 +452,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 12,
     fontSize: 14
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: 4
   },
   itemCard: {
     backgroundColor: '#fff',
