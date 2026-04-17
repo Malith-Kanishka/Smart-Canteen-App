@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../api/axiosConfig';
 import { useAuth } from '../context/AuthContext';
+import { isNicValid, isGmailEmail, isPhoneValid, isAgeAtLeast, isPasswordStrong } from '../utils/formValidators';
 
 const WebDateInput = ({ value, onChange, style }) => {
   if (Platform.OS !== 'web') {
@@ -112,6 +113,7 @@ const ProfileScreen = ({ userRole }) => {
   const [passwordMessage, setPasswordMessage] = useState('');
   const [passwordMessageType, setPasswordMessageType] = useState('error');
   const [error, setError] = useState('');
+  const [editError, setEditError] = useState('');
   const [photoVersion, setPhotoVersion] = useState(Date.now());
 
   const [editOpen, setEditOpen] = useState(false);
@@ -181,16 +183,40 @@ const ProfileScreen = ({ userRole }) => {
   };
 
   const saveProfile = async () => {
-    if (!editForm.fullName.trim() || !editForm.username.trim() || !editForm.email.trim() || !editForm.phone.trim()) {
-      Alert.alert('Missing details', 'Full name, username, email, and phone are required.');
+    if (
+      !editForm.fullName.trim() ||
+      !editForm.username.trim() ||
+      !editForm.nic.trim() ||
+      !editForm.email.trim() ||
+      !editForm.phone.trim() ||
+      !editForm.address.trim() ||
+      !editForm.dateOfBirth.trim()
+    ) {
+      setEditError('All fields are required.');
       return;
     }
 
-    if (editForm.dateOfBirth && !isOldEnough(editForm.dateOfBirth, minimumAge)) {
-      Alert.alert('Invalid DOB', `Age must be at least ${minimumAge}.`);
+    if (!isNicValid(editForm.nic)) {
+      setEditError('NIC must be 12 digits or 9 digits followed by V, v, X, or x.');
       return;
     }
 
+    if (!isGmailEmail(editForm.email)) {
+      setEditError('Email must end with @gmail.com.');
+      return;
+    }
+
+    if (!isPhoneValid(editForm.phone)) {
+      setEditError('Phone number must be exactly 10 digits.');
+      return;
+    }
+
+    if (!isAgeAtLeast(editForm.dateOfBirth, minimumAge)) {
+      setEditError(`Age must be at least ${minimumAge}.`);
+      return;
+    }
+
+    setEditError('');
     setSaving(true);
 
     try {
@@ -208,9 +234,8 @@ const ProfileScreen = ({ userRole }) => {
       setProfile(nextProfile);
       syncEditForm(nextProfile);
       setEditOpen(false);
-      Alert.alert('Success', 'Profile updated successfully');
     } catch (err) {
-      Alert.alert('Update failed', err.response?.data?.message || 'Unable to update profile');
+      setEditError(err.response?.data?.message || 'Unable to update profile');
     } finally {
       setSaving(false);
     }
@@ -229,8 +254,13 @@ const ProfileScreen = ({ userRole }) => {
       return;
     }
 
-    // Password must be at least 8 chars with letters and numbers
-    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(passwordForm.newPassword)) {
+    if (passwordForm.newPassword === passwordForm.currentPassword) {
+      setPasswordMessageType('error');
+      setPasswordMessage('New password must be different from current password.');
+      return;
+    }
+
+    if (!isPasswordStrong(passwordForm.newPassword)) {
       setPasswordMessageType('error');
       setPasswordMessage('Password must be at least 8 characters and include both letters and numbers.');
       return;
@@ -426,7 +456,13 @@ const ProfileScreen = ({ userRole }) => {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.primaryButton} onPress={() => setEditOpen(true)}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => {
+              setEditError('');
+              setEditOpen(true);
+            }}
+          >
             <Text style={styles.primaryButtonText}>Edit Profile</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryButton} onPress={() => setPasswordOpen(true)}>
@@ -487,6 +523,8 @@ const ProfileScreen = ({ userRole }) => {
                 </>
               )}
 
+              {!!editError && <Text style={styles.errorText}>{editError}</Text>}
+
               <TouchableOpacity style={styles.primaryButton} onPress={saveProfile} disabled={saving}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Save Changes</Text>}
               </TouchableOpacity>
@@ -495,6 +533,7 @@ const ProfileScreen = ({ userRole }) => {
                 onPress={() => {
                   syncEditForm(profile);
                   setShowEditDobPicker(false);
+                  setEditError('');
                   setEditOpen(false);
                 }}
               >

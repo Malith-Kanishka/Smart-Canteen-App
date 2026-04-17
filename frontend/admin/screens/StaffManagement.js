@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../../shared/api/axiosConfig';
+import { isNicValid, isGmailEmail, isPhoneValid, isAgeBetween } from '../../shared/utils/formValidators';
 
 const roleOptions = ['all', 'admin', 'foodmaster', 'inventory', 'promotion', 'order', 'finance', 'feedback'];
 
@@ -89,6 +90,7 @@ const StaffManagement = () => {
   const [showDobPicker, setShowDobPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [editError, setEditError] = useState('');
 
   const fetchStaff = useCallback(async () => {
     setLoading(true);
@@ -135,6 +137,7 @@ const StaffManagement = () => {
       dateOfBirth: formatDate(item.dateOfBirth),
       role: item.role || 'foodmaster'
     });
+    setEditError('');
     setEditModal(true);
   };
 
@@ -142,6 +145,7 @@ const StaffManagement = () => {
     setShowDobPicker(false);
     setEditModal(false);
     setEditForm(emptyEdit);
+    setEditError('');
   };
 
   const updateField = (key, value) => {
@@ -150,12 +154,45 @@ const StaffManagement = () => {
 
   const submitUpdate = async () => {
     if (!editForm._id) {
-      setError('Invalid staff record selected');
+      setEditError('Invalid staff record selected');
+      return;
+    }
+
+    if (
+      !editForm.fullName.trim() ||
+      !editForm.username.trim() ||
+      !editForm.nic.trim() ||
+      !editForm.email.trim() ||
+      !editForm.phone.trim() ||
+      !editForm.address.trim() ||
+      !editForm.dateOfBirth.trim()
+    ) {
+      setEditError('All fields are required.');
+      return;
+    }
+
+    if (!isNicValid(editForm.nic)) {
+      setEditError('NIC must be 12 digits or 9 digits followed by V, v, X, or x.');
+      return;
+    }
+
+    if (!isGmailEmail(editForm.email)) {
+      setEditError('Email must end with @gmail.com.');
+      return;
+    }
+
+    if (!isPhoneValid(editForm.phone)) {
+      setEditError('Phone number must be exactly 10 digits.');
+      return;
+    }
+
+    if (!isAgeBetween(editForm.dateOfBirth, 16, 55)) {
+      setEditError('Staff age must be between 16 and 55.');
       return;
     }
 
     setSaving(true);
-    setError('');
+    setEditError('');
 
     try {
       await api.put(`/admin/staff/${editForm._id}`, {
@@ -173,7 +210,7 @@ const StaffManagement = () => {
       await fetchStaff();
       Alert.alert('Success', 'Staff member updated successfully');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update staff');
+      setEditError(err.response?.data?.message || 'Failed to update staff');
     } finally {
       setSaving(false);
     }
@@ -332,6 +369,7 @@ const StaffManagement = () => {
                 ))}
               </View>
 
+              {!!editError && <Text style={styles.errorText}>{editError}</Text>}
               <TouchableOpacity style={styles.primaryButton} onPress={submitUpdate} disabled={saving}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Update Staff</Text>}
               </TouchableOpacity>

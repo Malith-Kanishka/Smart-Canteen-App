@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../api/axiosConfig';
+import { formatDate, parseDate, isNicValid, isGmailEmail, isPhoneValid, isAgeAtLeast, isPasswordStrong } from '../utils/formValidators';
 
 const WebDateInput = ({ value, onChange, disabled, style }) => {
   if (Platform.OS !== 'web') {
@@ -29,42 +30,6 @@ const WebDateInput = ({ value, onChange, disabled, style }) => {
   );
 };
 
-const isOldEnough = (dateOfBirth) => {
-  const birthDate = new Date(dateOfBirth);
-  if (Number.isNaN(birthDate.getTime())) {
-    return false;
-  }
-
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDifference = today.getMonth() - birthDate.getMonth();
-
-  if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
-    age -= 1;
-  }
-
-  return age >= 17;
-};
-
-const formatDate = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const parseDate = (dateString) => {
-  if (!dateString) {
-    return new Date(2000, 0, 1);
-  }
-
-  const parsed = new Date(dateString);
-  if (Number.isNaN(parsed.getTime())) {
-    return new Date(2000, 0, 1);
-  }
-
-  return parsed;
-};
 
 const RegisterScreen = ({ navigation, onSignIn }) => {
   const [form, setForm] = useState({
@@ -94,13 +59,38 @@ const RegisterScreen = ({ navigation, onSignIn }) => {
       return;
     }
 
+    // NIC validation: 12 digits or 9 digits with V/v
+    const nicRegex = /^(\d{12}|\d{9}[Vv])$/;
+    if (!nicRegex.test(nic.trim())) {
+      setError('NIC must be 12 digits or 9 digits followed by V or v');
+      return;
+    }
+
+    // Email validation: must end with @gmail.com
+    if (!email.trim().toLowerCase().endsWith('@gmail.com')) {
+      setError('Email must end with @gmail.com');
+      return;
+    }
+
+    // Phone validation: 10 digits
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(phone.trim())) {
+      setError('Phone number must be exactly 10 digits');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
-    if (!isOldEnough(dateOfBirth)) {
-      setError('Age must be greater than 16');
+    if (!isPasswordStrong(password)) {
+      setError('Password must be at least 8 characters and include both letters and numbers');
+      return;
+    }
+
+    if (!isAgeAtLeast(dateOfBirth, 16)) {
+      setError('Age must be greater than or equal to 16');
       return;
     }
 

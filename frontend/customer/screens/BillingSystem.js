@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { financeService, orderService } from '../../shared/api/services';
+import api from '../../shared/api/axiosConfig';
 
 const CUSTOMER_CART_KEY = 'customerCart';
 
@@ -117,10 +118,11 @@ const BillingSystem = ({ navigation }) => {
       formData.append('receipt', blob, `receipt_${source.transactionId || source.order.orderId}.txt`);
       formData.append('transactionId', source.transactionId || 'N/A');
       formData.append('orderId', source.order.orderId);
-      
-      await fetch('http://localhost:5000/api/save-receipt', {
-        method: 'POST',
-        body: formData,
+
+      await api.post('/save-receipt', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
     } catch (err) {
       console.error('Error saving receipt to backend:', err);

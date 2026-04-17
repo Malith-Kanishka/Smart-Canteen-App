@@ -9,9 +9,12 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  Platform
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../../shared/api/axiosConfig';
+import { formatDate, parseDate, isNicValid, isGmailEmail, isPhoneValid, isAgeBetween } from '../../shared/utils/formValidators';
 
 const defaultForm = {
   fullName: '',
@@ -31,6 +34,7 @@ const AdminDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [form, setForm] = useState(defaultForm);
+  const [showDobPicker, setShowDobPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [createdCredentials, setCreatedCredentials] = useState(null);
@@ -70,12 +74,45 @@ const AdminDashboard = () => {
 
   const closeModal = () => {
     setModalVisible(false);
+    setShowDobPicker(false);
     setForm(defaultForm);
     setCreatedCredentials(null);
     setError('');
   };
 
   const submitNewStaff = async () => {
+    if (
+      !form.fullName.trim() ||
+      !form.nic.trim() ||
+      !form.phone.trim() ||
+      !form.email.trim() ||
+      !form.address.trim() ||
+      !form.dateOfBirth.trim()
+    ) {
+      setError('All fields are required.');
+      return;
+    }
+
+    if (!isNicValid(form.nic)) {
+      setError('NIC must be 12 digits or 9 digits followed by V, v, X, or x.');
+      return;
+    }
+
+    if (!isGmailEmail(form.email)) {
+      setError('Email must end with @gmail.com.');
+      return;
+    }
+
+    if (!isPhoneValid(form.phone)) {
+      setError('Phone number must be exactly 10 digits.');
+      return;
+    }
+
+    if (!isAgeBetween(form.dateOfBirth, 16, 55)) {
+      setError('Staff age must be between 16 and 55.');
+      return;
+    }
+
     setSaving(true);
     setError('');
     setCreatedCredentials(null);
@@ -145,7 +182,38 @@ const AdminDashboard = () => {
               <TextInput style={styles.input} placeholder="Phone (10 digits)" value={form.phone} onChangeText={(v) => updateField('phone', v)} keyboardType="phone-pad" />
               <TextInput style={styles.input} placeholder="Email" value={form.email} onChangeText={(v) => updateField('email', v)} keyboardType="email-address" autoCapitalize="none" />
               <TextInput style={styles.input} placeholder="Address" value={form.address} onChangeText={(v) => updateField('address', v)} />
-              <TextInput style={styles.input} placeholder="DOB (YYYY-MM-DD)" value={form.dateOfBirth} onChangeText={(v) => updateField('dateOfBirth', v)} />
+              <Text style={styles.fieldLabel}>Date of Birth</Text>
+              {Platform.OS === 'web' ? (
+                <input
+                  type="date"
+                  value={form.dateOfBirth}
+                  max={formatDate(new Date())}
+                  onChange={(event) => updateField('dateOfBirth', event.target.value)}
+                  style={styles.webDateInput}
+                />
+              ) : (
+                <>
+                  <TouchableOpacity style={styles.dateInput} onPress={() => setShowDobPicker(true)}>
+                    <Text style={form.dateOfBirth ? styles.dateValue : styles.datePlaceholder}>
+                      {form.dateOfBirth || 'Select Date of Birth'}
+                    </Text>
+                  </TouchableOpacity>
+                  {showDobPicker && (
+                    <DateTimePicker
+                      value={parseDate(form.dateOfBirth)}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      maximumDate={new Date()}
+                      onChange={(_event, selectedDate) => {
+                        setShowDobPicker(false);
+                        if (selectedDate) {
+                          updateField('dateOfBirth', formatDate(selectedDate));
+                        }
+                      }}
+                    />
+                  )}
+                </>
+              )}
 
               <Text style={styles.smallHeading}>Select Role</Text>
               <View style={styles.roleChipWrap}>
@@ -212,6 +280,30 @@ const styles = StyleSheet.create({
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 14 },
   modalCard: { backgroundColor: '#fff', borderRadius: 14, padding: 16, maxHeight: '92%' },
   modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 10, color: '#111827' },
+  fieldLabel: { color: '#374151', fontSize: 13, fontWeight: '600', marginBottom: 4, marginTop: 2 },
+  dateInput: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 10
+  },
+  datePlaceholder: { color: '#9ca3af', fontSize: 15 },
+  dateValue: { color: '#111827', fontSize: 15 },
+  webDateInput: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 10,
+    fontSize: 15,
+    boxSizing: 'border-box'
+  },
   input: {
     borderWidth: 1,
     borderColor: '#d1d5db',

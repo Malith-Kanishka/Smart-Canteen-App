@@ -10,22 +10,29 @@ import {
   Alert,
   Image,
   RefreshControl,
-  Modal
+  Modal,
+  Platform
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../shared/api/axiosConfig';
+import { formatDate, parseDate, isGmailEmail, isPhoneValid, isAgeAtLeast, isPasswordStrong } from '../../shared/utils/formValidators';
 
 const MySecurityProfile = ({ onSignOut }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [editError, setEditError] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState('');
+  const [passwordMessageType, setPasswordMessageType] = useState('error');
 
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
 
   const [editForm, setEditForm] = useState({ fullName: '', email: '', phone: '', address: '', dateOfBirth: '' });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showEditDobPicker, setShowEditDobPicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const fetchProfile = useCallback(async () => {
@@ -67,28 +74,75 @@ const MySecurityProfile = ({ onSignOut }) => {
   };
 
   const saveProfile = async () => {
+    if (!editForm.fullName.trim() || !editForm.email.trim() || !editForm.phone.trim() || !editForm.address.trim() || !editForm.dateOfBirth.trim()) {
+      setEditError('All fields are required.');
+      return;
+    }
+
+    if (!isGmailEmail(editForm.email)) {
+      setEditError('Email must end with @gmail.com.');
+      return;
+    }
+
+    if (!isPhoneValid(editForm.phone)) {
+      setEditError('Phone number must be exactly 10 digits.');
+      return;
+    }
+
+    if (!isAgeAtLeast(editForm.dateOfBirth, 16)) {
+      setEditError('Age must be at least 16.');
+      return;
+    }
+
+    setEditError('');
     setSaving(true);
     try {
       await api.put('/admin/profile', editForm);
       setEditOpen(false);
       await fetchProfile();
-      Alert.alert('Success', 'Profile updated successfully');
     } catch (err) {
-      Alert.alert('Update failed', err.response?.data?.message || 'Unable to update profile');
+      setEditError(err.response?.data?.message || 'Unable to update profile');
     } finally {
       setSaving(false);
     }
   };
 
   const changePassword = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordMessageType('error');
+      setPasswordMessage('Fill in all password fields.');
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordMessageType('error');
+      setPasswordMessage('New password and confirmation do not match.');
+      return;
+    }
+
+    if (passwordForm.newPassword === passwordForm.currentPassword) {
+      setPasswordMessageType('error');
+      setPasswordMessage('New password must be different from current password.');
+      return;
+    }
+
+    if (!isPasswordStrong(passwordForm.newPassword)) {
+      setPasswordMessageType('error');
+      setPasswordMessage('Password must be at least 8 characters and include both letters and numbers.');
+      return;
+    }
+
+    setPasswordMessage('');
     setSaving(true);
     try {
       await api.put('/admin/change-password', passwordForm);
       setPasswordOpen(false);
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      Alert.alert('Success', 'Password changed successfully');
+      setPasswordMessageType('success');
+      setPasswordMessage('Password changed successfully.');
     } catch (err) {
-      Alert.alert('Password change failed', err.response?.data?.message || 'Unable to change password');
+      setPasswordMessageType('error');
+      setPasswordMessage(err.response?.data?.message || 'Unable to change password');
     } finally {
       setSaving(false);
     }
@@ -191,10 +245,23 @@ const MySecurityProfile = ({ onSignOut }) => {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.primaryButton} onPress={() => setEditOpen(true)}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => {
+              setEditError('');
+              setEditOpen(true);
+            }}
+          >
             <Text style={styles.primaryButtonText}>Edit Profile</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton} onPress={() => setPasswordOpen(true)}>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => {
+              setPasswordMessage('');
+              setPasswordMessageType('error');
+              setPasswordOpen(true);
+            }}
+          >
             <Text style={styles.secondaryButtonText}>Change Password</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.logoutButton} onPress={logout}>
@@ -211,12 +278,51 @@ const MySecurityProfile = ({ onSignOut }) => {
             <TextInput style={styles.input} placeholder="Email" value={editForm.email} onChangeText={(v) => updateEditField('email', v)} autoCapitalize="none" />
             <TextInput style={styles.input} placeholder="Phone" value={editForm.phone} onChangeText={(v) => updateEditField('phone', v)} />
             <TextInput style={styles.input} placeholder="Address" value={editForm.address} onChangeText={(v) => updateEditField('address', v)} />
-            <TextInput style={styles.input} placeholder="DOB (YYYY-MM-DD)" value={editForm.dateOfBirth} onChangeText={(v) => updateEditField('dateOfBirth', v)} />
+            <Text style={styles.fieldLabel}>Date of Birth</Text>
+            {Platform.OS === 'web' ? (
+              <input
+                type="date"
+                value={editForm.dateOfBirth}
+                max={formatDate(new Date())}
+                onChange={(event) => updateEditField('dateOfBirth', event.target.value)}
+                style={styles.webDateInput}
+              />
+            ) : (
+              <>
+                <TouchableOpacity style={styles.dateInput} onPress={() => setShowEditDobPicker(true)}>
+                  <Text style={editForm.dateOfBirth ? styles.dateValue : styles.datePlaceholder}>
+                    {editForm.dateOfBirth || 'Select Date of Birth'}
+                  </Text>
+                </TouchableOpacity>
+                {showEditDobPicker && (
+                  <DateTimePicker
+                    value={parseDate(editForm.dateOfBirth)}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    maximumDate={new Date()}
+                    onChange={(_event, selectedDate) => {
+                      setShowEditDobPicker(false);
+                      if (selectedDate) {
+                        updateEditField('dateOfBirth', formatDate(selectedDate));
+                      }
+                    }}
+                  />
+                )}
+              </>
+            )}
+
+            {!!editError && <Text style={styles.errorText}>{editError}</Text>}
 
             <TouchableOpacity style={styles.primaryButton} onPress={saveProfile} disabled={saving}>
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Save Profile Changes</Text>}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => setEditOpen(false)}>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => {
+                setEditError('');
+                setEditOpen(false);
+              }}
+            >
               <Text style={styles.secondaryButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -231,10 +337,23 @@ const MySecurityProfile = ({ onSignOut }) => {
             <TextInput style={styles.input} placeholder="New Password" value={passwordForm.newPassword} onChangeText={(v) => updatePasswordField('newPassword', v)} secureTextEntry />
             <TextInput style={styles.input} placeholder="Confirm New Password" value={passwordForm.confirmPassword} onChangeText={(v) => updatePasswordField('confirmPassword', v)} secureTextEntry />
 
+            {!!passwordMessage && (
+              <Text style={passwordMessageType === 'success' ? styles.successText : styles.errorText}>
+                {passwordMessage}
+              </Text>
+            )}
+
             <TouchableOpacity style={styles.primaryButton} onPress={changePassword} disabled={saving}>
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Update Password</Text>}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => setPasswordOpen(false)}>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => {
+                setPasswordMessage('');
+                setPasswordMessageType('error');
+                setPasswordOpen(false);
+              }}
+            >
               <Text style={styles.secondaryButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -265,6 +384,30 @@ const styles = StyleSheet.create({
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', padding: 14 },
   modalCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14 },
   modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 10, color: '#1f2937' },
+  fieldLabel: { color: '#374151', fontSize: 13, fontWeight: '600', marginBottom: 4, marginTop: 2 },
+  dateInput: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 8
+  },
+  datePlaceholder: { color: '#9ca3af', fontSize: 15 },
+  dateValue: { color: '#111827', fontSize: 15 },
+  webDateInput: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 8,
+    fontSize: 15,
+    boxSizing: 'border-box'
+  },
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,
@@ -274,7 +417,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 8
   },
-  errorText: { color: '#dc2626', marginBottom: 8 }
+  errorText: { color: '#dc2626', marginBottom: 8 },
+  successText: { color: '#16a34a', marginBottom: 8 }
 });
 
 export default MySecurityProfile;

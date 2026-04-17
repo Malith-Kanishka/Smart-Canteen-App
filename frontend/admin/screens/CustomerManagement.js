@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../../shared/api/axiosConfig';
+import { isNicValid, isGmailEmail, isPhoneValid, isAgeAtLeast } from '../../shared/utils/formValidators';
 
 const emptyEdit = {
   _id: '',
@@ -85,6 +86,7 @@ const CustomerManagement = () => {
   const [editModal, setEditModal] = useState(false);
   const [editForm, setEditForm] = useState(emptyEdit);
   const [showDobPicker, setShowDobPicker] = useState(false);
+  const [editError, setEditError] = useState('');
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
@@ -127,6 +129,7 @@ const CustomerManagement = () => {
       address: item.address || '',
       dateOfBirth: formatDate(item.dateOfBirth)
     });
+    setEditError('');
     setEditModal(true);
   };
 
@@ -134,6 +137,7 @@ const CustomerManagement = () => {
     setShowDobPicker(false);
     setEditModal(false);
     setEditForm(emptyEdit);
+    setEditError('');
   };
 
   const updateField = (key, value) => {
@@ -142,12 +146,45 @@ const CustomerManagement = () => {
 
   const submitUpdate = async () => {
     if (!editForm._id) {
-      setError('Invalid customer selected');
+      setEditError('Invalid customer selected');
+      return;
+    }
+
+    if (
+      !editForm.fullName.trim() ||
+      !editForm.username.trim() ||
+      !editForm.nic.trim() ||
+      !editForm.email.trim() ||
+      !editForm.phone.trim() ||
+      !editForm.address.trim() ||
+      !editForm.dateOfBirth.trim()
+    ) {
+      setEditError('All fields are required.');
+      return;
+    }
+
+    if (!isNicValid(editForm.nic)) {
+      setEditError('NIC must be 12 digits or 9 digits followed by V, v, X, or x.');
+      return;
+    }
+
+    if (!isGmailEmail(editForm.email)) {
+      setEditError('Email must end with @gmail.com.');
+      return;
+    }
+
+    if (!isPhoneValid(editForm.phone)) {
+      setEditError('Phone number must be exactly 10 digits.');
+      return;
+    }
+
+    if (!isAgeAtLeast(editForm.dateOfBirth, 16)) {
+      setEditError('Age must be at least 16.');
       return;
     }
 
     setSaving(true);
-    setError('');
+    setEditError('');
 
     try {
       await api.put(`/admin/customers/${editForm._id}`, {
@@ -164,7 +201,7 @@ const CustomerManagement = () => {
       await fetchCustomers();
       Alert.alert('Success', 'Customer updated successfully');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update customer');
+      setEditError(err.response?.data?.message || 'Failed to update customer');
     } finally {
       setSaving(false);
     }
@@ -294,6 +331,7 @@ const CustomerManagement = () => {
                 </>
               )}
 
+              {!!editError && <Text style={styles.errorText}>{editError}</Text>}
               <TouchableOpacity style={styles.editBtn} onPress={submitUpdate} disabled={saving}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.editBtnText}>Update Customer</Text>}
               </TouchableOpacity>
