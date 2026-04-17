@@ -21,7 +21,10 @@ const BillingSystem = ({ navigation }) => {
   const [cardHolderName, setCardHolderName] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
-  const [stripePaymentMethodId, setStripePaymentMethodId] = useState('');
+  const [cvc, setCvc] = useState('');
+  const [country, setCountry] = useState('Sri Lanka');
+  const [email, setEmail] = useState('');
+  const [stripePaymentMethodId, setStripePaymentMethodId] = useState('pm_card_visa');
   const [loading, setLoading] = useState(false);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState('');
@@ -36,7 +39,10 @@ const BillingSystem = ({ navigation }) => {
     setCardHolderName('');
     setCardNumber('');
     setExpiryDate('');
-    setStripePaymentMethodId('');
+    setCvc('');
+    setCountry('Sri Lanka');
+    setEmail('');
+    setStripePaymentMethodId('pm_card_visa');
     setShowGatewayModal(false);
     setPaidBillData(null);
     setSuccess('');
@@ -145,23 +151,30 @@ const BillingSystem = ({ navigation }) => {
       return;
     }
 
-    if (paymentType === 'card' && (!stripePaymentMethodId.trim() || !cardHolderName.trim() || !cardNumber.trim() || !expiryDate.trim())) {
-      setError('Stripe payment method id, card holder, card number and expiry are required for card payment');
+    if (paymentType === 'card' && (!cardHolderName.trim() || !cardNumber.trim() || !expiryDate.trim() || !cvc.trim() || !country.trim())) {
+      setError('Card holder, card number, expiry, CVC and country are required for card payment');
       return;
     }
 
     setPaying(true);
     try {
+      const paymentMethodId = paymentType === 'card'
+        ? stripePaymentMethodId.trim() || 'pm_card_visa'
+        : undefined;
+
       const payload = {
         orderId: pendingOrder._id,
         paymentType,
         amountReceived: received,
-        stripePaymentMethodId: paymentType === 'card' ? stripePaymentMethodId.trim() : undefined,
+        stripePaymentMethodId: paymentType === 'card' ? paymentMethodId : undefined,
         cardDetails: paymentType === 'card'
           ? {
               cardHolderName: cardHolderName.trim(),
               cardNumber: cardNumber.trim(),
               expiryDate: expiryDate.trim(),
+              cvc: cvc.trim(),
+              country: country.trim(),
+              email: email.trim() || undefined,
             }
           : null,
       };
@@ -227,6 +240,7 @@ const BillingSystem = ({ navigation }) => {
   };
 
   const openCardGateway = () => {
+    setStripePaymentMethodId('pm_card_visa');
     setShowGatewayModal(true);
   };
 
@@ -403,26 +417,92 @@ const BillingSystem = ({ navigation }) => {
       )}
 
       {/* Card Gateway Modal */}
-      <Modal transparent visible={showGatewayModal} animationType="fade" onRequestClose={() => setShowGatewayModal(false)}>
+      <Modal transparent visible={showGatewayModal} animationType="slide" onRequestClose={() => setShowGatewayModal(false)}>
         <View style={styles.gatewayBackdrop}>
           <View style={styles.gatewayCard}>
-            <Text style={styles.gatewayTitle}>Stripe Payment Gateway</Text>
-            <Text style={styles.gatewayHint}>Use test PaymentMethod id, e.g. pm_card_visa</Text>
-            <TextInput style={styles.input} value={stripePaymentMethodId} onChangeText={setStripePaymentMethodId} placeholder="Stripe PaymentMethod ID" />
-            <TextInput style={styles.input} value={cardHolderName} onChangeText={setCardHolderName} placeholder="Card holder name" />
-            <TextInput style={styles.input} value={cardNumber} onChangeText={setCardNumber} placeholder="Card number" />
-            <TextInput style={styles.input} value={expiryDate} onChangeText={setExpiryDate} placeholder="MM/YY" />
+            <View style={styles.gatewayHeader}>
+              <Text style={styles.gatewayTitle}>Pay with card</Text>
+              <Text style={styles.gatewaySubtitle}>Secure, fast checkout with Stripe</Text>
+            </View>
+
+            <View style={styles.paymentBrandRow}>
+              <View style={styles.cardBrandPill}>
+                <Text style={styles.brandIcon}>💳</Text>
+                <Text style={styles.brandText}>Card</Text>
+              </View>
+              <Text style={styles.linkText}>Secure, fast checkout with Link</Text>
+            </View>
+
+            <View style={styles.orderPaySummary}>
+              <Text style={styles.summaryLabel}>Amount</Text>
+              <Text style={styles.summaryAmount}>Rs. {Number(pendingOrder?.payableAmount || 0).toFixed(2)}</Text>
+            </View>
+
+            <TextInput
+              style={styles.input}
+              value={cardHolderName}
+              onChangeText={setCardHolderName}
+              placeholder="Cardholder name"
+              placeholderTextColor="#94a3b8"
+            />
+
+            <TextInput
+              style={styles.input}
+              value={cardNumber}
+              onChangeText={setCardNumber}
+              placeholder="Card number"
+              placeholderTextColor="#94a3b8"
+              keyboardType="number-pad"
+            />
+
+            <View style={styles.inlineRow}>
+              <TextInput
+                style={[styles.input, styles.expiryInput]}
+                value={expiryDate}
+                onChangeText={setExpiryDate}
+                placeholder="MM/YY"
+                placeholderTextColor="#94a3b8"
+                keyboardType="number-pad"
+                maxLength={5}
+              />
+              <TextInput
+                style={[styles.input, styles.cvcInput]}
+                value={cvc}
+                onChangeText={setCvc}
+                placeholder="CVC"
+                placeholderTextColor="#94a3b8"
+                keyboardType="number-pad"
+                maxLength={3}
+              />
+            </View>
+
+            <TextInput
+              style={styles.input}
+              value={country}
+              onChangeText={setCountry}
+              placeholder="Country"
+              placeholderTextColor="#94a3b8"
+            />
+
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email (optional)"
+              placeholderTextColor="#94a3b8"
+              keyboardType="email-address"
+            />
 
             <TouchableOpacity
               style={[styles.payBtn, paying && styles.disabled]}
               onPress={confirmCardGatewayPayment}
               disabled={paying}
             >
-              <Text style={styles.payText}>{paying ? 'Processing...' : 'Pay Now'}</Text>
+              <Text style={styles.payText}>{paying ? 'Processing...' : 'Pay now'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.closeGatewayBtn} onPress={() => setShowGatewayModal(false)}>
-              <Text style={styles.payText}>Close</Text>
+              <Text style={styles.closeText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -469,8 +549,8 @@ const styles = StyleSheet.create({
   paymentTitle: { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 10 },
   
   // Method Selection
-  methodRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  methodBtn: { flex: 1, borderWidth: 2, borderColor: '#475569', borderRadius: 8, paddingVertical: 10, alignItems: 'center', backgroundColor: 'transparent' },
+  methodRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  methodBtn: { flex: 1, borderWidth: 2, borderColor: '#475569', borderRadius: 8, paddingVertical: 10, alignItems: 'center', backgroundColor: 'transparent', marginRight: 8 },
   methodBtnActive: { backgroundColor: '#1abc9c', borderColor: '#1abc9c' },
   methodText: { color: '#cbd5e1', fontWeight: '700', fontSize: 13 },
   methodTextActive: { color: '#fff' },
@@ -482,7 +562,7 @@ const styles = StyleSheet.create({
   payBtn: { backgroundColor: '#16a34a', borderRadius: 8, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
   downloadBtn: { backgroundColor: '#0ea5e9', borderRadius: 8, paddingVertical: 12, alignItems: 'center', marginTop: 6 },
   newTransactionBtn: { backgroundColor: '#8b5cf6', borderRadius: 8, paddingVertical: 12, alignItems: 'center', marginTop: 6 },
-  completeBtnRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  completeBtnRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
   closeGatewayBtn: { backgroundColor: '#64748b', borderRadius: 8, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
   payText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   disabled: { opacity: 0.6 },
@@ -500,10 +580,28 @@ const styles = StyleSheet.create({
   emptySub: { color: '#64748b', marginTop: 4 },
   
   // Gateway Modal
-  gatewayHint: { color: '#475569', fontSize: 12, marginBottom: 8 },
-  gatewayBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 14 },
-  gatewayCard: { backgroundColor: '#fff', borderRadius: 12, padding: 14 },
-  gatewayTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginBottom: 8 },
+  gatewayBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-start', alignItems: 'center', paddingTop: 40, paddingBottom: 20 },
+  gatewayCard: { backgroundColor: '#ffffff', borderRadius: 24, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 16, maxHeight: '100%', width: '90%', alignSelf: 'center', maxWidth: 380, marginTop: 10 },
+  gatewayHeader: { marginBottom: 16 },
+  gatewayTitle: { fontSize: 22, fontWeight: '800', color: '#0f172a', marginBottom: 4 },
+  gatewaySubtitle: { color: '#475569', fontSize: 14 },
+  paymentBrandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 14 },
+  cardBrandPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#eef2ff', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999 },
+  brandIcon: { fontSize: 16 },
+  brandText: { fontSize: 14, fontWeight: '700', color: '#4338ca' },
+  linkText: { color: '#10b981', fontSize: 13, flex: 1, marginLeft: 12 },
+  orderPaySummary: { backgroundColor: '#f8fafc', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#dbeafe', marginBottom: 14 },
+  summaryLabel: { fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 4 },
+  summaryAmount: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
+  inlineRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  expiryInput: { width: 110 },
+  cvcInput: { width: 80 },
+  input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 12, backgroundColor: '#f8fafc', paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10, fontSize: 14, color: '#0f172a', width: '100%' },
+  payBtn: { backgroundColor: '#4338ca', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 10 },
+  closeGatewayBtn: { backgroundColor: '#e5e7eb', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 10 },
+  payText: { color: '#ffffff', fontWeight: '700', fontSize: 15 },
+  closeText: { color: '#374151', fontWeight: '700', fontSize: 15 },
+  disabled: { opacity: 0.6 },
 });
 
 export default BillingSystem;
