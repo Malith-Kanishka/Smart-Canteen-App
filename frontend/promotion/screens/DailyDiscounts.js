@@ -108,6 +108,22 @@ const DailyDiscounts = () => {
       return;
     }
 
+    // Check if item already has a daily discount for today (only for new discounts)
+    if (!editingDiscount) {
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD format
+      const existingDiscount = discounts.find(discount => 
+        discount.menuItemId === form.menuItemId && 
+        discount.status !== 'expired' &&
+        new Date(discount.createdAt).toISOString().slice(0, 10) === today
+      );
+      
+      if (existingDiscount) {
+        setFormMessage('This item already has a daily discount for today');
+        notify('Validation', 'This item already has a daily discount for today');
+        return;
+      }
+    }
+
     const discountValue = Number(form.discountPercentage);
     if (!Number.isFinite(discountValue) || discountValue <= 0 || discountValue >= 100) {
       setFormMessage('Discount percentage must be between 1 and 99');
@@ -268,13 +284,20 @@ const DailyDiscounts = () => {
             <Text style={styles.modalTitle}>{editingDiscount ? 'Edit Daily Discount' : 'Create Daily Discount'}</Text>
             <ScrollView>
               {!!formMessage && <Text style={styles.formMessage}>{formMessage}</Text>}
-              <TouchableOpacity style={styles.dropdown} onPress={() => setMenuPickerOpen(true)}>
+              
+              <Text style={styles.inputLabel}>Menu Item</Text>
+              <TouchableOpacity 
+                style={[styles.dropdown, editingDiscount && styles.readOnlyDropdown]} 
+                onPress={() => !editingDiscount && setMenuPickerOpen(true)}
+                disabled={editingDiscount}
+              >
                 <Text style={[styles.dropdownText, !selectedMenuItem && styles.placeholder]}>
                   {selectedMenuItem ? `${selectedMenuItem.name} - Rs. ${Number(selectedMenuItem.price).toFixed(2)}` : 'Select menu item'}
                 </Text>
-                <Text style={styles.dropdownCaret}>▼</Text>
+                {!editingDiscount && <Text style={styles.dropdownCaret}>▼</Text>}
               </TouchableOpacity>
 
+              <Text style={styles.inputLabel}>Discount Percentage</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Discount %"
@@ -367,10 +390,12 @@ const styles = StyleSheet.create({
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.35)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, maxHeight: '88%' },
   modalTitle: { fontSize: 20, fontWeight: '700', color: '#0f172a', marginBottom: 12 },
+  inputLabel: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 4 },
   dropdown: { borderWidth: 1, borderColor: '#dbe1ea', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   dropdownText: { color: '#0f172a', fontSize: 14 },
   placeholder: { color: '#94a3b8' },
   dropdownCaret: { color: '#64748b', fontSize: 12 },
+  readOnlyDropdown: { backgroundColor: '#f8fafc', borderColor: '#e2e8f0' },
   dropdownOption: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eef2f7' },
   dropdownOptionText: { color: '#0f172a', fontSize: 14 },
   pickerBackdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.35)', justifyContent: 'center', padding: 20 },

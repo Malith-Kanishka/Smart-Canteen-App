@@ -34,6 +34,7 @@ const FeedbackList = () => {
   const [replyModalVisible, setReplyModalVisible] = useState(false);
   const [activeFeedback, setActiveFeedback] = useState(null);
   const [replyText, setReplyText] = useState('');
+  const [replyError, setReplyError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
   const [activePhotoUri, setActivePhotoUri] = useState(null);
@@ -76,6 +77,7 @@ const FeedbackList = () => {
   const openReplyModal = (item) => {
     setActiveFeedback(item);
     setReplyText(item.reply || '');
+    setReplyError('');
     setReplyModalVisible(true);
   };
 
@@ -83,6 +85,7 @@ const FeedbackList = () => {
     setReplyModalVisible(false);
     setActiveFeedback(null);
     setReplyText('');
+    setReplyError('');
   };
 
   const openPhotoModal = (imageUrl) => {
@@ -102,10 +105,11 @@ const FeedbackList = () => {
     }
 
     if (!replyText.trim()) {
-      setError('Reply message is required');
+      setReplyError('Reply message is required');
       return;
     }
 
+    setReplyError('');
     setActionLoading(true);
     try {
       await feedbackService.replyToFeedback(activeFeedback._id, replyText.trim(), 'resolved');
@@ -249,6 +253,7 @@ const FeedbackList = () => {
               onChangeText={setReplyText}
               multiline
             />
+            {!!replyError && <Text style={styles.errorText}>{replyError}</Text>}
             <View style={styles.modalActionRow}>
               <TouchableOpacity style={[styles.modalButton, styles.modalCancel]} onPress={closeReplyModal}>
                 <Text style={styles.modalButtonText}>Cancel</Text>

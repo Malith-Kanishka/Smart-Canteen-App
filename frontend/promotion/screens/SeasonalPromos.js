@@ -328,12 +328,16 @@ const SeasonalPromos = () => {
             <Text style={styles.modalTitle}>{editingPromo ? 'Edit Seasonal Promotion' : 'Create Seasonal Promotion'}</Text>
             <ScrollView>
               {!!formMessage && <Text style={styles.formMessage}>{formMessage}</Text>}
+              
+              <Text style={styles.fieldLabel}>Title</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Title"
                 value={form.title}
                 onChangeText={(value) => setForm((prev) => ({ ...prev, title: value }))}
               />
+              
+              <Text style={styles.fieldLabel}>Discount Percentage</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Discount %"
